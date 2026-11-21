@@ -1,0 +1,13 @@
+{
+  "name": "transitgap",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node test/serve.mjs",
+    "test": "node --test --test-reporter=dot test/model.test.mjs",
+    "test:browser": "node test/browser.mjs",
+    "benchmark": "node test/benchmark.mjs"
+  }
+}

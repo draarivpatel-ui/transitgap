@@ -1,0 +1,10 @@
+{
+  "project": "TransitGap",
+  "source": "style.css",
+  "focus": { "color": "#225c99", "width": "3px", "offset": "3px" },
+  "motion": { "mapFill": "180ms ease-out", "reducedMotion": "none" },
+  "surfaces": {
+    "workbench": { "mode": "operate", "mapAndInspectorBreakpoint": "900px" },
+    "councilBrief": { "mode": "read", "printSize": "Letter", "printMargin": "16mm" }
+  }
+}
