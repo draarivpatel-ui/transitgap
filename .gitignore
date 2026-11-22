@@ -1,3 +1,5 @@
 .DS_Store
 .browser-*
 node_modules/
+video/*.wav
+video/*.mp4

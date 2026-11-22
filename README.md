@@ -2,6 +2,8 @@
 
 TransitGap compares a peak-corridor baseline with an exact allocation of bus frequency and stop shelters. It is a static browser workbench using fictional cities. It does not predict effects in a real city.
 
+**Live demo:** [https://aariv.me/transitgap/](https://aariv.me/transitgap/)
+
 ## Run
 
 ```sh
