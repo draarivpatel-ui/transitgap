@@ -57,7 +57,7 @@ export async function verifyAudit(text) {
 export function csvCell(input) {
   let text = String(input ?? '');
   if (typeof input !== 'number' &&
-      (/^[\t\r\n]/.test(text) || /^[\s\p{Cc}\p{Cf}]*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20]/u.test(text))) text = `'${text}`;
+      (/^[\t\r\n]/.test(text) || /^[\s\p{Cc}\p{Cf}\p{M}]*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20]/u.test(text))) text = `'${text}`;
   return `"${text.replaceAll('"', '""')}"`;
 }
 

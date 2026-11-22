@@ -14,10 +14,10 @@ export function walkSeconds(meters, exposure, temp) {
 }
 
 export function waitSeconds(headway, phase, arrival) {
-  if (!(headway > 0) || ![headway, phase, arrival].every(Number.isFinite)) {
+  if (!(headway > 0) || ![phase, arrival].every(Number.isFinite)) {
     throw new RangeError('Invalid timetable parameters');
   }
-  return ((phase - arrival) % headway + headway) % headway;
+  return Number.isFinite(headway) ? ((phase - arrival) % headway + headway) % headway : Infinity;
 }
 
 export function gini(values, weights) {
@@ -77,7 +77,12 @@ export function dijkstra(graph, source, start = 0, timetable = false) {
     const [time, node] = queue.pop();
     if (time !== arrival[node]) continue;
     for (const edge of graph[node]) {
-      const wait = edge.headway ? (timetable ? waitSeconds(edge.headway, edge.phase, time) : edge.headway / 2) : 0;
+      if (!Number.isFinite(edge.seconds) || edge.seconds < 0) throw new RangeError('Invalid edge cost');
+      let wait = 0;
+      if (edge.headway != null) {
+        if (!(edge.headway > 0)) throw new RangeError('Invalid edge headway');
+        wait = timetable ? waitSeconds(edge.headway, edge.phase, time) : edge.headway / 2;
+      }
       const next = time + edge.seconds + wait;
       if (next < arrival[edge.to]) {
         arrival[edge.to] = next;
@@ -99,7 +104,7 @@ export function normalizeOptions(input) {
 }
 
 export function shadeCandidates(city) {
-  return [...new Map(city.lines.filter(line => line.id !== 'R')
+  return [...new Map(city.lines.filter(line => line.min !== line.max)
     .flatMap(line => line.stops).map(at => [key(at), at])).values()];
 }
 
@@ -109,6 +114,7 @@ export function operatingBudget(city) {
 }
 
 export function validatePlan(city, plan) {
+  if (!Number.isInteger(city.shadeBudget) || city.shadeBudget < 0) throw new RangeError('Invalid shelter budget');
   if (!plan || !Array.isArray(plan.fleet) || plan.fleet.length !== city.lines.length ||
       !city.lines.every((line, i) => Number.isInteger(plan.fleet[i]) &&
         plan.fleet[i] >= line.min && plan.fleet[i] <= line.max) ||
@@ -130,7 +136,12 @@ export function streetSun(x, y, nx, ny) {
 
 export function buildGraph(city, fleet, heat) {
   const graph = Array.from({ length: city.w * city.h }, () => []);
-  const at = ([x, y]) => y * city.w + x;
+  const at = ([x, y]) => {
+    if (![x, y].every(Number.isInteger) || x < 0 || x >= city.w || y < 0 || y >= city.h) {
+      throw new RangeError('Coordinate outside the city grid');
+    }
+    return y * city.w + x;
+  };
   const temp = heat ? city.heat : 26;
   const join = (from, to, data) => graph[from].push({ to, ...data });
   for (let y = 0; y < city.h; y++) {
@@ -145,6 +156,7 @@ export function buildGraph(city, fleet, heat) {
   }
   city.lines.forEach((line, index) => {
     const headway = line.cycle * 60 / fleet[index];
+    if (!(headway > 0)) throw new RangeError('Invalid line headway');
     const offset = index * 120;
     for (const reverse of [false, true]) {
       const stops = reverse ? line.stops.slice().reverse() : line.stops;
@@ -202,6 +214,7 @@ function fromProfiles(city, fleet, shade, options, profiles) {
   });
   const weights = city.neighborhoods.map(n => n.pop);
   const total = weights.reduce((a, b) => a + b, 0);
+  if (!total) throw new RangeError('City has no population');
   const meanOf = field => rows.reduce((sum, row, i) => sum + row[field] * weights[i], 0) / total;
   const mean = meanOf('mean');
   const inequality = gini(rows.map(r => r.access), weights);
@@ -223,6 +236,7 @@ export function assess(city, plan, input) {
 
 export function optimize(city, input) {
   const options = normalizeOptions(input);
+  if (!Number.isInteger(city.shadeBudget) || city.shadeBudget < 0) throw new RangeError('Invalid shelter budget');
   const shades = shadeCandidates(city);
   const fleet = [];
   const mandatory = city.lines.map((_, i) => city.lines.slice(i + 1).reduce((sum, line) => sum + line.min, 0));
@@ -263,5 +277,6 @@ export function optimize(city, input) {
     }
   }
   visit(0, city.fleetBudget);
+  if (!best) throw new RangeError('No feasible fleet allocation');
   return { ...best, evaluated, hospitalFloor };
 }

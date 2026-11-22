@@ -99,7 +99,7 @@ nav a:hover { text-decoration: underline; }
 .line-casing { stroke: var(--white); stroke-width: 8; }
 .line-path { stroke-width: 4; }
 .map-stop { fill: var(--white); stroke: #28473a; stroke-width: 1.55; }
-.has-shelter { fill: #deaa53; stroke-width: 2.1; }
+.has-shelter { fill: #b27e22; stroke-width: 2.1; }
 .service-mark { fill: #273c32; stroke: var(--white); stroke-width: 1.4; }
 .service-text { fill: var(--white); font-size: 12px; font-weight: 800; }
 .neighborhood { cursor: pointer; outline: none; }
@@ -124,7 +124,7 @@ nav a:hover { text-decoration: underline; }
 .key-mark { display: inline-grid; place-items: center; width: 1.04rem; height: 1.04rem; background: #273c32; color: var(--white); font: 750 .68rem/1 var(--chrome); border-radius: 3px; margin-left: .22rem; }
 .key-mark:first-child { margin-left: 0; }
 .key-stop { display: inline-block; width: .55rem; height: .55rem; border: 1.4px solid #28473a; border-radius: 50%; margin-left: .26rem; }
-.key-stop.shaded { background: #deaa53; }
+.key-stop.shaded { background: #b27e22; }
 .inspector { border: 1px solid #bacabb; border-radius: var(--radius); background: #e8eee2; overflow: hidden; }
 .inspector-top { background: var(--green); color: var(--white); padding: .86rem .9rem; display: grid; gap: .69rem; }
 .inspector-top h2 { font-size: 1.43rem; }

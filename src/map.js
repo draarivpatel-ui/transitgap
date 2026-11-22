@@ -31,6 +31,7 @@ export function renderMap(wrap, state, select) {
       <rect class="service-mark" x="-10" y="-10" width="20" height="20" rx="3"/>
       <text class="service-text" y="0" text-anchor="middle" dominant-baseline="central">${markers[i]}</text>
     </g>`).join('');
+  const names = [];
   const neighborhoods = city.neighborhoods.map((n, i) => {
     const a = result.rows[i].within;
     const b = baseline.rows[i].within;
@@ -38,13 +39,13 @@ export function renderMap(wrap, state, select) {
     const chosen = n.id === selected;
     const text = layer === 'change' ? delta(a - b) : `${amount}/4`;
     const label = layer === 'change' ? `${n.name}, ${b} to ${a} services` : `${n.name}, ${amount} of 4 services`;
+    names.push(`<text class="zone-name" x="${x(n.x)}" y="${y(n.y) + 38}" text-anchor="middle">${n.name}</text>`);
     return `<g class="neighborhood ${layer === 'change' ? diffClass(a - b) : `c${amount}`}"
       data-neighborhood="${n.id}" role="button" tabindex="0" aria-label="${label}" aria-pressed="${chosen}"
       transform="translate(${x(n.x)} ${y(n.y)})">
       <rect class="target" x="-37" y="-24" width="74" height="47" rx="8"/>
       <rect class="zone" x="-31" y="-22" width="62" height="44" rx="8"/>
       <text class="zone-number" text-anchor="middle" dominant-baseline="central">${text}</text>
-      <text class="zone-name" y="38" text-anchor="middle">${n.name}</text>
     </g>`;
   }).join('');
   const gridX = Array.from({ length: city.w }, (_, i) => `<path d="M${x(i)} 29v271"/>`).join('');
@@ -58,7 +59,7 @@ export function renderMap(wrap, state, select) {
       <text x="712" y="22" text-anchor="end" class="map-note">schematic · not to scale</text>
       <path d="M766 52v-18l-5 8m5-8 5 8" class="north-arrow"/>
       <text x="766" y="26" text-anchor="middle" class="map-note">N</text>
-      ${lines}${neighborhoods}<g class="map-symbols">${stops}${places}</g>
+      ${lines}${neighborhoods}<g class="map-symbols">${stops}${places}</g><g class="map-names">${names.join('')}</g>
     </svg>`;
   const controls = wrap.querySelectorAll('[data-neighborhood]');
   controls.forEach(button => {

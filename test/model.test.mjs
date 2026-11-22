@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { BASIC, CITIES } from '../src/cities.js';
-import { assess, buildGraph, dijkstra, gini, operatingBudget, optimize, shadeCandidates, validatePlan,
-  walkSeconds, waitSeconds } from '../src/model.js';
+import { assess, buildGraph, dijkstra, gini, key, operatingBudget, optimize, shadeCandidates,
+  validatePlan, walkSeconds, waitSeconds } from '../src/model.js';
 import { buildAudit, canonical, csv, csvCell, geojson, sha256, verifyAudit } from '../src/audit.js';
 
 function random(seed) {
@@ -223,7 +223,7 @@ test('Audit verifies a hand-edited, legal plan but rejects rehashed forged outco
 });
 
 for (const [i, value] of ['=1+1', '+42', '-2', '@SUM(A1)', '\tvalue', '\nnot a new row', '\ufeff =1',
-  '\u200f@now', '  \uff0b2', '\r=x'].entries()) {
+  '\u200f@now', '  \uff0b2', '\r=x', '\u0301=1+1', ' \u0327@f', '\ufe0f=x', '\u1ab0-2', ' \u0301+9'].entries()) {
   test(`CSV formula neutralization ${i + 1}`, () => assert.ok(csvCell(value).startsWith(`"'`)));
 }
 test('CSV quoting preserves plain negative numbers and escapes embedded markup', () => {
@@ -248,3 +248,92 @@ for (let seed = 1; seed <= 20; seed++) {
     assert.throws(() => validatePlan(city, { ...city.baseline, shade: [[900 + seed, 0]] }));
   });
 }
+
+test('Optimizer throws when no fleet allocation is feasible', () => {
+  const city = { ...structuredClone(CITIES[0]), fleetBudget: 1 };
+  assert.throws(() => optimize(city, BASIC), RangeError);
+});
+
+test('Malformed edges throw instead of hanging the solver', () => {
+  const cyclic = [[{ to: 1, seconds: 5, headway: -30, phase: 0 }], [{ to: 0, seconds: 5 }]];
+  for (const timetable of [false, true]) {
+    assert.throws(() => dijkstra(cyclic, 0, 0, timetable), RangeError);
+    assert.throws(() => dijkstra([[{ to: 1, seconds: -5 }], []], 0, timetable), RangeError);
+    assert.throws(() => dijkstra([[{ to: 1, seconds: 5, headway: 0 }], []], 0, timetable), RangeError);
+  }
+});
+
+test('An infinite-headway line is absent in both waiting modes', () => {
+  assert.equal(waitSeconds(Infinity, 0, 123), Infinity);
+  const graph = [[{ to: 1, seconds: 5, headway: Infinity, phase: 0 }], []];
+  for (const timetable of [false, true]) {
+    assert.equal(dijkstra(graph, 0, 0, timetable).arrival[1], Infinity);
+  }
+});
+
+test('A zero-fleet line matches the same city without it', () => {
+  const city = structuredClone(CITIES[0]);
+  city.lines[0].min = 0;
+  const absent = { ...city, lines: city.lines.slice(1) };
+  const plan = { fleet: [0, 2, 1], shade: [] };
+  const dropped = { fleet: [2, 1], shade: [] };
+  // Expected mode ignores phases, so exact equality holds across the dropped line.
+  assert.deepEqual(assess(city, plan, BASIC), assess(absent, dropped, BASIC));
+  // In timetable mode the unreachable line must contribute nothing: mutating it cannot change results.
+  const ghost = structuredClone(city);
+  ghost.lines[0].stops = [[8, 5]];
+  ghost.lines[0].run = [];
+  ghost.lines[0].cycle = 7;
+  const timetable = { ...BASIC, mode: 'timetable' };
+  assert.deepEqual(assess(city, plan, timetable), assess(ghost, plan, timetable));
+});
+
+test('Negative or zero headways and runs fail at build in either mode', () => {
+  const negative = structuredClone(CITIES[0]);
+  negative.lines[0].min = -1;
+  const zeroCycle = structuredClone(CITIES[0]);
+  zeroCycle.lines[0].cycle = 0;
+  const badRun = structuredClone(CITIES[0]);
+  badRun.lines[0].run = [-5, 4, 4, 3];
+  for (const options of [BASIC, { ...BASIC, mode: 'timetable' }]) {
+    assert.throws(() => assess(negative, { fleet: [-1, 2, 1], shade: [] }, options), RangeError);
+    assert.throws(() => assess(zeroCycle, zeroCycle.baseline, options), RangeError);
+    assert.throws(() => assess(badRun, badRun.baseline, options), RangeError);
+  }
+});
+
+test('Out-of-grid coordinates throw instead of silently wrapping', () => {
+  const service = structuredClone(CITIES[0]);
+  service.services[0].at = [service.w, 0];
+  assert.throws(() => assess(service, service.baseline, BASIC), RangeError);
+  const wrapped = structuredClone(CITIES[0]);
+  wrapped.neighborhoods[0].x = wrapped.w;
+  assert.throws(() => assess(wrapped, wrapped.baseline, BASIC), RangeError);
+  const stop = structuredClone(CITIES[0]);
+  stop.lines[0].stops[0] = [9, 2];
+  assert.throws(() => assess(stop, stop.baseline, BASIC), RangeError);
+});
+
+test('A city without population weight throws instead of emitting NaN', () => {
+  const empty = { ...structuredClone(CITIES[0]), neighborhoods: [] };
+  assert.throws(() => assess(empty, empty.baseline, BASIC), RangeError);
+  const zero = structuredClone(CITIES[0]);
+  zero.neighborhoods.forEach(n => { n.pop = 0; });
+  assert.throws(() => assess(zero, zero.baseline, BASIC), RangeError);
+});
+
+test('A malformed shelter budget is rejected by optimize, validatePlan and assess', () => {
+  const city = { ...structuredClone(CITIES[0]), shadeBudget: -1 };
+  assert.throws(() => optimize(city, BASIC), /shelter budget/i);
+  const plan = { fleet: city.lines.map(line => line.min), shade: [] };
+  assert.throws(() => validatePlan(city, plan), /shelter budget/i);
+  assert.throws(() => assess(city, plan, BASIC), /shelter budget/i);
+  city.shadeBudget = 1.5;
+  assert.throws(() => optimize(city, BASIC), /shelter budget/i);
+});
+
+test('Shelter candidates skip stops exclusive to fixed lines', () => {
+  const stops = new Set(shadeCandidates(CITIES[1]).map(key));
+  // [0,3] is rail-only; [2,3] and [4,3] are also served by bus lines and stay eligible.
+  assert.ok(!stops.has('0,3') && stops.has('2,3') && stops.has('4,3'));
+});
