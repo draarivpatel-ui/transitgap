@@ -50,10 +50,11 @@ export function renderMap(wrap, state, select) {
   }).join('');
   const gridX = Array.from({ length: city.w }, (_, i) => `<path d="M${x(i)} 29v271"/>`).join('');
   const gridY = Array.from({ length: city.h }, (_, j) => `<path d="M36 ${y(j)}h728"/>`).join('');
+  const uid = (wrap.id || 'map').replace(/[^a-zA-Z0-9-]/g, '');
   wrap.innerHTML = `
-    <svg viewBox="0 0 800 329" aria-labelledby="map-svg-title map-svg-description" xmlns="http://www.w3.org/2000/svg">
-      <title id="map-svg-title">${city.label} schematic</title>
-      <desc id="map-svg-description">Synthetic street grid and transit lines. Neighborhood buttons open travel and equity details.</desc>
+    <svg viewBox="0 0 800 329" aria-labelledby="${uid}-title ${uid}-description" xmlns="http://www.w3.org/2000/svg">
+      <title id="${uid}-title">${city.label} schematic</title>
+      <desc id="${uid}-description">Synthetic street grid and transit lines. Neighborhood buttons open travel and equity details.</desc>
       <g class="grid">${gridX}${gridY}${rects.join('')}</g>
       <text x="28" y="22" class="map-note">${city.blockMeters} m per grid block</text>
       <text x="712" y="22" text-anchor="end" class="map-note">schematic · not to scale</text>

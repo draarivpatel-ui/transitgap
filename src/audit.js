@@ -1,5 +1,6 @@
 import { CITIES } from './cities.js';
 import { assess, key, normalizeOptions, optimize, validatePlan } from './model.js';
+import { sha256Hex } from './sha256.js';
 
 const VERSION = 'transitgap/v1';
 export const MAX_AUDIT_BYTES = 256_000;
@@ -15,8 +16,11 @@ export function canonical(value) {
 }
 
 export async function sha256(text) {
-  const hash = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(hash), x => x.toString(16).padStart(2, '0')).join('');
+  if (globalThis.crypto?.subtle) {
+    const hash = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(hash), x => x.toString(16).padStart(2, '0')).join('');
+  }
+  return sha256Hex(text);
 }
 
 function payloadFor(city, options, kind, plan) {

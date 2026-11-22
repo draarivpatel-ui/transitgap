@@ -146,8 +146,8 @@ tbody th { font-weight: 650; }
 .local-gap, .hospital-alert { color: var(--warn); background: var(--warn-bg); border-radius: 7px; }
 .local-gap { padding: .46rem; margin-top: .55rem; }
 .hospital-alert { margin-top: .85rem; padding: .64rem .78rem; font-weight: 700; font-size: .88rem; }
-.allocation, .methods, .council { margin-top: 1.45rem; border-top: 1px solid #91a295; padding: 1.12rem 0 0; }
-.section-head, .print-tools, .downloads { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; }
+.allocation, .methods, .council, .policy { margin-top: 1.45rem; border-top: 1px solid #91a295; padding: 1.12rem 0 0; }
+.section-head, .print-tools, .downloads, .policy-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; }
 .section-head { justify-content: space-between; }
 .primary { color: var(--white); background: var(--green); border-color: var(--green); font-weight: 750; }
 .primary:hover { background: #265e4f; }
@@ -184,10 +184,82 @@ details summary { min-height: 37px; padding-block: .34rem; width: fit-content; c
 .brief p.brief-note { margin-top: 1.05em; font-size: .84em; border-top: 1px solid var(--rule); padding-top: .65em; color: var(--muted); }
 footer { display: flex; justify-content: space-between; gap: .55rem; flex-wrap: wrap; padding: 1.25rem 0; color: var(--muted); font-size: .78rem; }
 
+/* Policy intervention lab */
+.policy { display: grid; gap: .9rem; }
+.policy .section-head { display: flex; }
+.policy-actions button, .verify-label {
+  min-height: 36px; padding: .3rem .62rem; border-radius: 7px; font-size: .84rem;
+}
+.verify-label { display: inline-flex; align-items: center; border: 1px solid #a0ad9f; background: var(--white); cursor: pointer; }
+.verify-label:hover { background: #edf0e4; }
+#policy-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+#policy-file:focus-visible + .verify-label, .verify-label:has(+ #policy-file:focus-visible) { outline: 3px solid #225c99; outline-offset: 3px; }
+.verify-panel {
+  border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white);
+  padding: .7rem .95rem;
+}
+.verify-results { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr)); gap: .3rem 1.4rem; }
+.verify-results li { display: flex; justify-content: space-between; gap: .7rem; font-size: .8rem; padding: .24rem 0; border-bottom: 1px solid #e4e7da; }
+.verify-results li::before { content: ''; flex: none; width: .62rem; height: .62rem; margin-top: .3rem; border-radius: 50%; }
+.verify-results .vpass::before { background: var(--ok); }
+.verify-results .vfail::before { background: var(--warn); }
+.verify-results span { color: var(--muted); }
+.verify-badge { margin-top: .6rem; font-weight: 800; font-size: .9rem; color: var(--ok); }
+.verify-badge.vbad { color: var(--warn); }
+.preset-row { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 8px; background: #e8ebdf; width: fit-content; max-width: 100%; }
+.preset-row button { min-height: 34px; border: 0; background: transparent; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.preset-row button:hover { background: var(--white); }
+.preset-row [aria-pressed="true"], .preset-row [aria-pressed="true"]:hover { background: var(--green); color: var(--white); }
+.custom-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: .7rem 1.3rem; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white); padding: .8rem 1rem; }
+.slider-line { display: flex; align-items: center; gap: .75rem; margin-top: .2rem; }
+.slider-line input { flex: 1; min-width: 0; min-height: 32px; }
+.slider-line output { min-width: 4.6rem; text-align: right; font-weight: 800; font-size: .85rem; font-variant-numeric: tabular-nums; color: var(--ink); }
+.compare-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white); }
+.compare, .leverage, .hood-delta table { min-width: 46rem; }
+.compare th, .compare td, .leverage th, .leverage td, .hood-delta th, .hood-delta td { padding: .5rem .7rem; font-size: .83rem; }
+.compare thead th, .leverage thead th, .hood-delta thead th { border-bottom: 2px solid var(--green); }
+.compare tbody tr.current { background: #f0f3e6; }
+.compare tbody tr.current .row-pick { font-weight: 850; color: var(--green); }
+.row-pick { min-height: 0; padding: 0; border: 0; background: none; font-weight: 650; text-decoration: underline; text-underline-offset: .2em; }
+.row-pick:hover { background: none; color: var(--ok); }
+.policy-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.policy-map { margin: 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white); overflow: hidden; }
+.policy-map figcaption { padding: .5rem .85rem; font-size: .82rem; font-weight: 750; }
+.policy-map .map-wrap { border-top: 1px solid var(--rule); border-bottom: 0; }
+.bands { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white); padding: .7rem .95rem .85rem; }
+.bands h3, .leverage-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
+.bands-charts { display: grid; gap: .6rem; margin-top: .5rem; }
+.bands-charts svg { display: block; width: 100%; height: auto; }
+.band-zone { fill: var(--band); }
+.z0 { --band: #255a49; }
+.z1 { --band: #83af97; }
+.z2 { --band: #cfdec0; }
+.z3 { --band: #ead8ab; }
+.z4 { --band: #e9bca4; }
+.band-share { fill: #24352c; font-size: 11px; font-weight: 800; }
+.zi0, .zi1 { fill: #fffcf3; }
+.band-tick { fill: var(--muted); font-size: 10.5px; font-weight: 650; }
+.band-row-label { fill: #263e32; font-size: 11px; font-weight: 800; }
+.svc-mark text { font-size: 11px; font-weight: 800; }
+.svc-mark.before rect { fill: var(--white); stroke: #273c32; stroke-width: 1.5; }
+.svc-mark.before text { fill: #273c32; }
+.svc-mark.after circle { fill: #273c32; stroke: var(--white); stroke-width: 1.4; }
+.svc-mark.after text { fill: var(--white); }
+.clamp-arrow { fill: #273c32; }
+.band-legend { padding: .45rem 0 .1rem; }
+.swatch.z0, .swatch.z1, .swatch.z2, .swatch.z3, .swatch.z4 { background: var(--band); }
+.hood-delta { margin-top: .35rem; }
+.hood-delta table { margin-top: .3rem; }
+.hood-delta tr.current { background: #f0f3e6; }
+.leverage-title { margin: 0 0 -.45rem; }
+.cost-notes p { margin: .48rem 0; max-width: 72ch; color: var(--muted); font-size: .86rem; }
+.policy > .hint { margin: 0; }
+
 @media (max-width: 900px) {
   .shell { padding-inline: 1.35rem; }
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .inspector { max-width: none; }
+  .policy-detail { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 570px) {
   .shell { padding-inline: .82rem; }
@@ -215,6 +287,15 @@ footer { display: flex; justify-content: space-between; gap: .55rem; flex-wrap: 
   .route-row { grid-template-columns: 1fr 4.2rem; gap: .15rem .6rem; }
   .route-row label { grid-column: 1 / -1; }
   .section-head { align-items: start; }
+  .policy-actions { width: 100%; }
+  .preset-row { gap: 2px; }
+  .preset-row button { font-size: .72rem; padding-inline: .45rem; }
+  .custom-panel { padding: .7rem .75rem; }
+  .bands { padding: .6rem .6rem .7rem; }
+  .band-tick { font-size: 13px; }
+  .band-row-label { font-size: 14px; }
+  .band-share { font-size: 14px; }
+  .svc-mark text { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .zone { transition: none; }
@@ -222,7 +303,7 @@ footer { display: flex; justify-content: space-between; gap: .55rem; flex-wrap: 
 @page { size: Letter; margin: 16mm; }
 @media print {
   :root, body { background: #fff; color: #172820; }
-  .skip, .masthead, #workbench, .methods, footer, #council > .section-head { display: none !important; }
+  .skip, .masthead, #workbench, .methods, .policy, footer, #council > .section-head { display: none !important; }
   .shell, #council { margin: 0; padding: 0; border: 0; max-width: none; }
   .brief { margin: 0; padding: 0; border: 0; max-width: none; font-size: 11pt; }
   .brief h3 { font-size: 23pt; }

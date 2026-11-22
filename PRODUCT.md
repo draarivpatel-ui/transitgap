@@ -16,8 +16,8 @@ The implementation brief names city councils as the brief's audience. Planning s
 
 ## Product Purpose
 
-Compare bus frequency and stop shade under a fixed budget. Show both aggregate changes and the neighborhoods a budget-constrained plan still leaves far from essential services.
+Compare bus frequency and stop shade under a fixed budget, and compare named policy interventions against the baseline with equity indices and planning-model costs. Show both aggregate changes and the neighborhoods a budget-constrained plan still leaves far from essential services.
 
 ## Capabilities and Constraints
 
-Use synthetic scenarios only, state assumptions plainly, allow independent replay, and keep the first-load shell available offline. Support native keyboard controls and focused map neighborhoods without global single-character shortcuts.
+Use synthetic scenarios only, state assumptions plainly, allow independent replay, and keep the first-load shell available offline. Support native keyboard controls and focused map neighborhoods without global single-character shortcuts. Scenario bookmarking lives in the URL hash; signed exports verify with a pure-JavaScript SHA-256 and deterministic replay, never a network call.

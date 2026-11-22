@@ -3,12 +3,21 @@ import { assess, key, operatingBudget, optimize, shadeCandidates } from './model
 import { buildAudit, csv, geojson, MAX_AUDIT_BYTES, verifyAudit } from './audit.js';
 import { renderBrief } from './brief.js';
 import { renderLegend, renderMap } from './map.js';
+import { applyCustom, applyPreset, clampCustom, corridorLeverage, CUSTOM_DEFAULTS,
+  evaluateIntervention, PRESETS } from './interventions.js';
+import { buildPolicyJson, decodeScenario, encodeScenario, MAX_POLICY_BYTES,
+  policyCsv, policyMarkdown, verifyPolicyJson } from './policy.js';
+import { runSelfTests } from './selftest.js';
+import { customOutputs, renderBands, renderCompare, renderLeverage, renderPresets,
+  renderScenarioMaps, renderVerify } from './policyview.js';
 
 const $ = id => document.getElementById(id);
 const services = ['Hospital', 'Grocery', 'High school', 'Job center'];
+const defaultSelected = cityId => cityId === 'rural' ? 'mesa' : cityId === 'rail' ? 'canal' : 'east';
 const state = {
   city: CITIES[0], options: { ...BASIC }, plan: null, result: null, baseline: null, fit: null,
-  kind: 'optimized', layer: 'plan', selected: 'east', language: 'en'
+  kind: 'optimized', layer: 'plan', selected: 'east', language: 'en',
+  policy: { preset: 'baseline', custom: { ...CUSTOM_DEFAULTS }, evals: null, leverage: null, dirty: true }
 };
 const n = (value, digits = 1) => value.toFixed(digits);
 const pct = value => `${n(value * 100, 0)}%`;
@@ -21,6 +30,7 @@ function setSelected(id) {
   document.querySelectorAll('[data-neighborhood]').forEach(button =>
     button.setAttribute('aria-pressed', String(button.dataset.neighborhood === id)));
   renderDetail();
+  renderPolicySelection();
 }
 
 function renderDetail() {
@@ -132,11 +142,88 @@ function buildControls() {
   }));
 }
 
+const customActive = custom =>
+  Object.keys(CUSTOM_DEFAULTS).some(k => clampCustom(custom)[k] !== CUSTOM_DEFAULTS[k]);
+
+function computePolicy() {
+  const { city, options, policy } = state;
+  policy.evals = PRESETS.map(p => evaluateIntervention(city, options, applyPreset(city, options, p.id)));
+  if (policy.preset === 'custom' || customActive(policy.custom))
+    policy.evals.push(evaluateIntervention(city, options, applyCustom(city, options, policy.custom)));
+  policy.leverage = corridorLeverage(city, options);
+  policy.dirty = false;
+}
+
+function refreshCustomEval() {
+  const { city, options, policy } = state;
+  const i = policy.evals.findIndex(e => e.id === 'custom');
+  if (customActive(policy.custom) || policy.preset === 'custom') {
+    const ev = evaluateIntervention(city, options, applyCustom(city, options, policy.custom));
+    if (i < 0) policy.evals.push(ev); else policy.evals[i] = ev;
+  } else if (i >= 0) policy.evals.splice(i, 1);
+}
+
+const currentEval = () =>
+  state.policy.evals.find(e => e.id === state.policy.preset) ?? state.policy.evals[0];
+
+function renderPolicy() {
+  const { policy } = state;
+  if (policy.dirty) computePolicy();
+  const current = currentEval();
+  renderPresets($('presets'), policy.preset);
+  $('custom-panel').hidden = policy.preset !== 'custom';
+  renderCompare($('compare'), policy.evals, current.id);
+  renderScenarioMaps($('map-before'), $('map-after'), $('map-after-cap'), state, current, setSelected);
+  renderBands($('bands'), current, state.city, state.selected);
+  renderLeverage($('leverage'), policy.leverage);
+  $('policy-status').textContent = 'Unit costs are planning-model rates, not real-agency figures. The address-bar hash stores this scenario for a deterministic reload.'
+    + (current.meta?.capped ? ' Budget cap reached: the package wanted more service than the cap allowed.' : '');
+}
+
+function renderPolicySelection() {
+  if (!state.policy.evals) return;
+  renderBands($('bands'), currentEval(), state.city, state.selected);
+}
+
+function syncCustomInputs() {
+  const c = state.policy.custom;
+  $('c-hw').value = c.headwayScale;
+  $('c-sg').value = c.speedGain;
+  $('c-fs').value = c.subsidy;
+  $('c-cap').value = c.cap;
+  for (const [id, text] of Object.entries(customOutputs(c))) $(id).textContent = text;
+}
+
+function updateHash() {
+  const encoded = encodeScenario({
+    preset: state.policy.preset, custom: state.policy.custom, cityId: state.city.id
+  }, CITIES[0].id);
+  history.replaceState(null, '', `#${encoded}`);
+}
+
+function applyHash() {
+  const selection = decodeScenario(location.hash);
+  if (!selection) return;
+  state.policy.preset = selection.preset;
+  state.policy.custom = selection.custom;
+  syncCustomInputs();
+  if (selection.cityId && selection.cityId !== state.city.id) {
+    state.city = CITIES.find(c => c.id === selection.cityId);
+    $('scenario').value = selection.cityId;
+    state.selected = defaultSelected(selection.cityId);
+    run({ reset: true, controls: true });
+    return;
+  }
+  state.policy.dirty = true;
+  renderPolicy();
+}
+
 function run({ reset = false, controls = false, recalculate = true } = {}) {
   if (reset) state.kind = 'optimized';
   if (recalculate) {
     state.baseline = assess(state.city, state.city.baseline, state.options);
     state.fit = optimize(state.city, state.options);
+    state.policy.dirty = true;
   }
   if (state.kind === 'optimized') {
     state.plan = structuredClone(state.fit.plan);
@@ -147,13 +234,15 @@ function run({ reset = false, controls = false, recalculate = true } = {}) {
   if (controls) buildControls();
   syncRoutes();
   renderResults();
+  if (recalculate) renderPolicy();
 }
 
 $('scenario').replaceChildren(...CITIES.map(city => new Option(city.label, city.id)));
 $('scenario').addEventListener('change', () => {
   state.city = CITIES.find(city => city.id === $('scenario').value);
-  state.selected = state.city.id === 'rural' ? 'mesa' : state.city.id === 'rail' ? 'canal' : 'east';
+  state.selected = defaultSelected(state.city.id);
   run({ reset: true, controls: true });
+  updateHash();
 });
 $('neighborhood').addEventListener('change', event => setSelected(event.target.value));
 $('heat').addEventListener('change', event => {
@@ -239,6 +328,88 @@ $('audit-file').addEventListener('change', async event => {
   }
 });
 
+const CUSTOM_INPUTS = { 'c-hw': 'headwayScale', 'c-sg': 'speedGain', 'c-fs': 'subsidy', 'c-cap': 'cap' };
+function choosePreset(id) {
+  if (state.policy.preset === id && id !== 'custom') return;
+  state.policy.preset = id;
+  refreshCustomEval();
+  renderPolicy();
+  updateHash();
+}
+$('presets').addEventListener('click', event => {
+  const button = event.target.closest('[data-preset]');
+  if (button) choosePreset(button.dataset.preset);
+});
+$('compare').addEventListener('click', event => {
+  const button = event.target.closest('[data-pick]');
+  if (button) choosePreset(button.dataset.pick);
+});
+for (const [id, name] of Object.entries(CUSTOM_INPUTS)) {
+  $(id).addEventListener('input', event => {
+    state.policy.custom = clampCustom({ ...state.policy.custom, [name]: Number(event.target.value) });
+    for (const [out, text] of Object.entries(customOutputs(state.policy.custom))) $(out).textContent = text;
+    refreshCustomEval();
+    renderPolicy();
+  });
+  $(id).addEventListener('change', updateHash);
+}
+let policyAction = 0;
+document.querySelectorAll('[data-policy-export]').forEach(button => button.addEventListener('click', async () => {
+  const ticket = ++policyAction;
+  const ext = button.dataset.policyExport;
+  const type = { csv: 'text/csv;charset=utf-8', md: 'text/markdown;charset=utf-8', json: 'application/json' };
+  const selection = { preset: state.policy.preset, custom: state.policy.custom };
+  try {
+    const content = ext === 'csv' ? policyCsv(state.city, state.options, state.policy.custom)
+      : ext === 'md' ? policyMarkdown(state.city, state.options, selection)
+        : buildPolicyJson(state.city, state.options, selection);
+    download(content, ext, type[ext], `${state.city.id}-policy`);
+    if (ticket === policyAction) $('policy-status').textContent =
+      `Prepared ${ext.toUpperCase()} download. The JSON carries a SHA-256 digest over the canonical payload.`;
+  } catch {
+    if (ticket === policyAction) $('policy-status').textContent = 'Could not prepare the policy download.';
+  }
+}));
+$('policy-file').addEventListener('change', async event => {
+  const ticket = ++policyAction;
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  try {
+    const result = file.size <= MAX_POLICY_BYTES ? await verifyPolicyJson(await file.text()) : { ok: false, reason: 'size' };
+    if (ticket === policyAction) $('policy-status').textContent = result.ok
+      ? `Verified SHA-256 digest and deterministic replay for ${CITIES.find(c => c.id === result.city).label}.`
+      : `Policy file verification failed (${result.reason}). Choose an unchanged TransitGap impact JSON file.`;
+  } catch {
+    if (ticket === policyAction) $('policy-status').textContent = 'Could not read the policy file.';
+  }
+});
+$('verify-open').addEventListener('click', async () => {
+  const panel = $('verify');
+  const opening = panel.hidden;
+  panel.hidden = !opening;
+  $('verify-open').setAttribute('aria-expanded', String(opening));
+  if (!opening) return;
+  $('verify-badge').textContent = 'Running deterministic checks…';
+  $('verify-badge').classList.remove('vbad');
+  const outcome = await runSelfTests();
+  renderVerify($('verify-results'), $('verify-badge'), outcome);
+});
+window.addEventListener('hashchange', applyHash);
+
+{
+  const selection = decodeScenario(location.hash);
+  if (selection) {
+    if (selection.cityId && CITIES.some(c => c.id === selection.cityId)) {
+      state.city = CITIES.find(c => c.id === selection.cityId);
+      $('scenario').value = selection.cityId;
+      state.selected = defaultSelected(selection.cityId);
+    }
+    state.policy.preset = selection.preset;
+    state.policy.custom = selection.custom;
+    syncCustomInputs();
+  }
+}
 run({ reset: true, controls: true });
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const ready = () => { $('offline').textContent = 'Offline ready'; };

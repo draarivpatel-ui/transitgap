@@ -24,6 +24,14 @@ On a public host, serve this directory over HTTPS with the `/transitgap/` prefix
 - Exchange buses between routes or move shelters without breaking the caps. Restore the optimizer to undo manual changes. Rail frequency is not part of the transit agency's synthetic bus budget.
 - Download GeoJSON, equity CSV or an audit JSON. Import a bundle to verify its digest and replay its results. The English and Spanish council briefs print independently of the workbench controls.
 
+## Policy intervention lab
+
+- Six deterministic scenarios sit below the workbench: baseline today, a dedicated bus rapid lane, peak headway halving, a late-night service floor, a feeder micro-shuttle and a cross-town express link, plus a slider-driven custom package (headway multiplier, speed gain, fare subsidy, added-service cap).
+- The comparator reports population-weighted access delta, access Gini, Atkinson index (inequality aversion 0.5), top-bottom 20:20 and Palma ratios, dependent coverage, jobs inside 30 and 45 minutes, annual package cost and equity lift per `$1M` of annual cost. All costs are planning-model unit rates, not real-agency figures.
+- Paired maps and reach-time bands (15, 30, 45 and 60 minutes) contrast the baseline network with the selected scenario for the inspector's neighborhood. The leverage table ranks single-corridor upgrades by equity gain per dollar.
+- The address-bar hash (`#scenario=...`) bookmarks a preset or slider package for a deterministic reload. One-click exports produce a comparator CSV, a Markdown brief and a signed JSON impact bundle whose SHA-256 digest covers the canonical inputs and outputs; the in-page verifier replays the model and flags edits. Hashing uses a pure-JavaScript SHA-256 implementation, so verification works without Web Crypto.
+- The "Verify math" button runs the in-page self-test suite: weighted-Gini bounds, population-weight conservation, intervention dominance invariants, SHA-256 known-answer vectors, URL hash round-trips, CSV injection escaping and digest tamper detection, with a live pass/fail badge.
+
 ## Model
 
 Each contiguous grid is a bidirectional street graph with one residential origin per neighborhood. Destinations are one hospital, grocery store, high school and job center. Neighbors are one block away. Directed route states separate boarding, remaining onboard and alighting, so transfers incur a new wait and through trips do not. The Dijkstra solver minimizes modeled door-to-door earliest arrival. Expected wait is half a headway for each boarding, an assumption of random arrivals rather than a measured transfer delay. The exact mode uses the next departure at each stop in a repeating FIFO timetable.
@@ -49,6 +57,8 @@ The benchmark below uses the heat advisory and expected waiting in each syntheti
 In the rural county six neighborhoods are over 45 minutes from the hospital under every feasible allocation. Far Mesa's independent minimum is 127.4 minutes; the selected plan takes 132.4 minutes from there. Better county-wide access does not eliminate that gap.
 
 Audit JSON embeds the synthetic city, settings, allocation, outputs and SHA-256 over canonical UTF-8 payload bytes. The verifier checks the digest, requires a known scenario definition, recomputes the results and compares the canonical payload. The digest is not a signature. GeoJSON emits counterclockwise polygons in a fictitious Pacific coordinate frame with a `synthetic` flag. CSV quotes every cell and neutralizes formula-like text.
+
+The policy impact bundle signs the same way: a canonical payload of city, options, scenario selection, every evaluated intervention, the leverage ranking and unit costs, hashed with the pure-JavaScript SHA-256 in `src/sha256.js`. `verifyPolicyJson` rechecks the digest and deterministically replays every scenario before accepting a file.
 
 ## Screens
 

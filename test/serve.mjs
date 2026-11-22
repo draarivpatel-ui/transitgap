@@ -8,7 +8,8 @@ const csp = [
 ].join('; ');
 const files = new Map([
   ['', 'index.html'], ['index.html', 'index.html'], ['style.css', 'style.css'], ['mark.svg', 'mark.svg'], ['sw.js', 'sw.js'],
-  ...['app', 'map', 'brief', 'model', 'audit', 'cities'].map(name => [`src/${name}.js`, `src/${name}.js`])
+  ...['app', 'map', 'brief', 'model', 'audit', 'cities', 'interventions', 'policy',
+    'policyview', 'selftest', 'sha256'].map(name => [`src/${name}.js`, `src/${name}.js`])
 ]);
 const mime = { html: 'text/html', css: 'text/css', js: 'text/javascript', svg: 'image/svg+xml' };
 

@@ -52,7 +52,7 @@ Use editorial serif for the brand, section heads and comparison values. Keep con
 
 ## Layout
 
-Put scenario controls first, then measures, then the map next to its neighborhood inspector. Under 900 px, put the inspector directly below the map. Under 570 px, keep two comparison columns.
+Put scenario controls first, then measures, then the map next to its neighborhood inspector. Under 900 px, put the inspector directly below the map. Under 570 px, keep two comparison columns. The policy lab follows as a second full-width section: preset buttons, a comparator table, paired before/after maps, reach-time bands and a leverage table; wide tables scroll inside their own panels instead of overflowing the page.
 
 ## Elevation & Depth
 

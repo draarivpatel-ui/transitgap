@@ -5,6 +5,7 @@ import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyAudit } from '../src/audit.js';
+import { verifyPolicyJson } from '../src/policy.js';
 import { serve } from './serve.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -104,7 +105,7 @@ try {
   await Promise.all(['Page.enable', 'Runtime.enable', 'Log.enable', 'Network.enable'].map(method => cdp.call(method)));
   assert.match((await fetch(home)).headers.get('content-security-policy'), /frame-ancestors 'none'/);
   const setSize = (width, height) => cdp.call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 500 });
-  const loaded = () => until(() => cdp.evaluate(`document.querySelectorAll('[data-neighborhood]').length === 8`), 'workbench');
+  const loaded = () => until(() => cdp.evaluate(`document.querySelectorAll('#map-wrap [data-neighborhood]').length === 8`), 'workbench');
   const save = async name => {
     await cdp.call('Page.captureScreenshot', { format: 'png', fromSurface: true });
     const { data } = await cdp.call('Page.captureScreenshot', { format: 'png', fromSurface: true });
@@ -133,10 +134,10 @@ try {
       && document.documentElement.scrollWidth === ${width}`), true);
     check(`${width}×${height} without horizontal overflow`);
   };
-  await setSize(1280, 800);
+  await setSize(1440, 900);
   await cdp.call('Page.navigate', { url: home });
   await loaded();
-  await noOverflow(1280, 800);
+  await noOverflow(1440, 900);
   await until(() => cdp.evaluate(`navigator.serviceWorker.controller && document.querySelector('#offline').textContent === 'Offline ready'`), 'offline cache installed');
   await save('desktop');
   await click('[data-layer="change"]');
@@ -188,6 +189,75 @@ try {
   }
   check('Browser downloads CSV, GeoJSON and JSON and verifies the uploaded audit');
 
+  await until(() => cdp.evaluate(`document.querySelectorAll('#presets [data-preset]').length === 7
+    && document.querySelectorAll('#compare tbody tr').length === 6
+    && document.querySelectorAll('#leverage tbody tr').length > 3
+    && document.querySelectorAll('#map-before [data-neighborhood]').length === 8
+    && document.querySelectorAll('#map-after [data-neighborhood]').length === 8
+    && document.querySelectorAll('#bands svg').length === 2`), 'policy lab renders');
+  assert.match(await text('map-after-cap'), /Baseline today/);
+  check('Policy lab renders presets, comparator, paired maps, bands and leverage table');
+
+  for (const id of ['brt', 'floor', 'shuttle', 'express']) {
+    await click(`#presets [data-preset="${id}"]`);
+    await until(() => cdp.evaluate(`document.querySelector('#compare tr.current')?.dataset.scenario === '${id}'
+      && location.hash.includes('scenario=${id}')`), `preset ${id}`);
+  }
+  await click('#compare [data-pick="headway"]');
+  await until(() => cdp.evaluate(`document.querySelector('#compare tr.current')?.dataset.scenario === 'headway'`), 'row pick');
+  await click('#presets [data-preset="baseline"]');
+  check('Every intervention preset and comparator row select the scenario and update the hash');
+
+  await click('#presets [data-preset="custom"]');
+  await until(() => cdp.evaluate(`document.querySelector('#custom-panel').hidden === false`), 'custom panel');
+  await cdp.evaluate(`(() => {
+    const hw = document.getElementById('c-hw');
+    hw.value = '0.7'; hw.dispatchEvent(new Event('input', { bubbles: true }));
+    const fs = document.getElementById('c-fs');
+    fs.value = '400000'; fs.dispatchEvent(new Event('input', { bubbles: true }));
+    hw.dispatchEvent(new Event('change', { bubbles: true }));
+    fs.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await until(() => cdp.evaluate(`document.querySelector('#compare tr.current')?.dataset.scenario === 'custom'
+    && location.hash.includes('scenario=custom') && location.hash.includes('hw=0.7')
+    && location.hash.includes('fs=400000')`), 'custom scenario');
+  check('Custom sliders recompute the package live and bookmark it in the hash');
+
+  await cdp.call('Page.navigate', { url: `${home}#scenario=headway&city=rural` });
+  await until(() => cdp.evaluate(`document.querySelector('#compare tr.current')?.dataset.scenario === 'headway'
+    && document.querySelector('#scenario').value === 'rural'`), 'hash reload');
+  assert.match(await text('map-after-cap'), /Peak headway halving/);
+  check('A hash bookmark reloads the same scenario and city deterministically');
+
+  await click('#verify-open');
+  const selfTotal = await until(() => cdp.evaluate(`document.querySelectorAll('#verify-results li').length`), 'self tests');
+  assert.equal(await cdp.evaluate(`document.querySelectorAll('#verify-results li.vfail').length`), 0);
+  assert.match(await text('verify-badge'), new RegExp(`^${selfTotal}/${selfTotal} deterministic checks passed$`));
+  check(`In-page self-test runner reports ${selfTotal}/${selfTotal} checks passing`);
+
+  for (const ext of ['csv', 'md', 'json']) {
+    const name = `transitgap-rural-policy.${ext}`;
+    await click(`[data-policy-export="${ext}"]`);
+    await until(async () => (await readdir(downloads)).includes(name), name);
+    const content = await readFile(join(downloads, name), 'utf8');
+    if (ext === 'csv') assert.match(content, /equity_lift_per_1m/);
+    else if (ext === 'md') assert.match(content, /not real-agency figures/);
+    else {
+      assert.equal((await verifyPolicyJson(content)).ok, true);
+      const { root } = await cdp.call('DOM.getDocument');
+      const { nodeId } = await cdp.call('DOM.querySelector', { nodeId: root.nodeId, selector: '#policy-file' });
+      await cdp.call('DOM.setFileInputFiles', { nodeId, files: [join(downloads, name)] });
+      await until(async () => /Verified SHA-256/.test(await text('policy-status')), 'policy replay');
+      const tampered = content.replace('"serviceDays":365', '"serviceDays":366');
+      assert.notEqual(tampered, content);
+      const bad = join(scratch, 'tampered.json');
+      await writeFile(bad, tampered);
+      await cdp.call('DOM.setFileInputFiles', { nodeId, files: [bad] });
+      await until(async () => /failed \(digest\)/.test(await text('policy-status')), 'tamper detection');
+    }
+  }
+  check('Signed policy exports download, verify in page and detect tampering');
+
   for (const language of ['en', 'es']) {
     await select('language', language);
     await cdp.call('Emulation.setEmulatedMedia', { media: 'print' });
@@ -206,6 +276,10 @@ try {
   await cdp.call('Emulation.setEmulatedMedia', { media: '' });
   await setSize(390, 844);
   await noOverflow(390, 844);
+  await click('#presets [data-preset="shuttle"]');
+  await until(() => cdp.evaluate(`document.querySelector('#compare tr.current')?.dataset.scenario === 'shuttle'`), 'mobile preset');
+  await noOverflow(390, 844);
+  check('Mobile preset switching keeps the layout inside the viewport');
   if (process.env.CAPTURE_MOBILE === '1') {
     await cdp.evaluate('window.scrollTo(0, 0)');
     await save('mobile');
@@ -214,6 +288,8 @@ try {
   await click('[data-neighborhood="hollow"] .zone');
   assert.equal(await cdp.evaluate(`document.querySelector('#neighborhood').value`), 'hollow');
   check('Mobile map hit targets reach their neighborhood details');
+  await click('#presets [data-preset="baseline"]');
+  await select('scenario', 'sunbelt');
   const openServer = server;
   await new Promise(resolve => openServer.close(resolve));
   server = null;

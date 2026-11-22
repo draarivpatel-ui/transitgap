@@ -18,6 +18,7 @@
       <div class="wordmark"><img src="./mark.svg" alt="" width="34" height="34"><h1>TransitGap</h1></div>
       <nav aria-label="Workbench navigation">
         <a href="#workbench">Compare</a>
+        <a href="#policy">Policy lab</a>
         <a href="#method">Methods</a>
         <a class="brief-link" href="#council">Council brief <span aria-hidden="true">&nearr;</span></a>
       </nav>
@@ -76,6 +77,49 @@
           </details>
         </section>
       </div>
+      <section id="policy" class="policy" aria-labelledby="policy-title">
+        <div class="section-head"><h2 id="policy-title">Policy intervention lab</h2>
+          <div class="policy-actions">
+            <button type="button" id="verify-open" aria-expanded="false" aria-controls="verify">Verify math</button>
+            <button type="button" data-policy-export="csv">Comparator CSV</button>
+            <button type="button" data-policy-export="md">Brief Markdown</button>
+            <button type="button" class="primary" data-policy-export="json">Signed impact JSON</button>
+            <label class="verify-label" for="policy-file">Verify impact JSON</label><input type="file" id="policy-file" accept=".json,application/json">
+          </div>
+        </div>
+        <div id="verify" class="verify-panel" hidden>
+          <ol id="verify-results" class="verify-results"></ol>
+          <p id="verify-badge" class="verify-badge" role="status"></p>
+        </div>
+        <div class="preset-row" id="presets" role="group" aria-label="Intervention scenario"></div>
+        <div id="custom-panel" class="custom-panel" hidden>
+          <label class="field slider-field">Headway multiplier
+            <span class="slider-line"><input id="c-hw" type="range" min="0.5" max="1.5" step="0.05" value="1"><output id="c-hw-out" for="c-hw">1.00&#215;</output></span>
+          </label>
+          <label class="field slider-field">Corridor speed gain
+            <span class="slider-line"><input id="c-sg" type="range" min="0" max="0.4" step="0.05" value="0"><output id="c-sg-out" for="c-sg">+0%</output></span>
+          </label>
+          <label class="field slider-field">Fare subsidy
+            <span class="slider-line"><input id="c-fs" type="range" min="0" max="3000000" step="100000" value="0"><output id="c-fs-out" for="c-fs">$0/yr</output></span>
+          </label>
+          <label class="field slider-field">Added service cap
+            <span class="slider-line"><input id="c-cap" type="range" min="0" max="8000000" step="250000" value="0"><output id="c-cap-out" for="c-cap">$0/yr</output></span>
+          </label>
+        </div>
+        <div class="compare-scroll"><table id="compare" class="compare"></table></div>
+        <div class="policy-detail">
+          <figure class="policy-map"><figcaption>Baseline network</figcaption><div id="map-before" class="map-wrap"></div></figure>
+          <figure class="policy-map"><figcaption id="map-after-cap">Scenario network</figcaption><div id="map-after" class="map-wrap"></div></figure>
+        </div>
+        <div id="bands" class="bands"></div>
+        <h3 class="leverage-title">Highest-leverage corridors</h3>
+        <div class="compare-scroll"><table id="leverage" class="leverage"></table></div>
+        <details class="cost-notes"><summary>Metric definitions and planning-model unit costs</summary>
+          <p>Weighted access delta is the scenario minus baseline mean access score, weighted by population. Equity lift combines the Gini reduction with the bottom-quintile access gain and is reported per million dollars of annual package cost. The 20:20 ratio divides top-quintile mean access by bottom-quintile mean access; the Atkinson index uses inequality aversion 0.5. The Palma index compares the richest ten percent with the poorest forty. Dependent coverage counts zero-car, low-income and senior residents.</p>
+          <p>Unit costs: $90 per bus-hour, 365 service days per year, $42,000 per lane-kilometre per year, $150,000 fixed annual cost per new line, $6,000 per added shelter per year. All are planning-model rates for comparing scenarios, not real-agency figures. A scenario saved in the address bar hash reloads the same inputs; the signed JSON export hashes the canonical inputs and outputs so any edit to the file fails verification.</p>
+        </details>
+        <p id="policy-status" class="hint" role="status"></p>
+      </section>
       <section id="method" class="methods">
         <h2>Methods and audit</h2>
         <details>
