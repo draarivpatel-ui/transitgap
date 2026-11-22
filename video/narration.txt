@@ -1,0 +1,15 @@
+TransitGap is a static workbench for transit equity. It compares a peak corridor baseline with an exact allocation of buses and shelters across three synthetic cities. Everything runs client side, fully offline, with zero runtime dependencies.
+
+The plan comparison reads live. Coverage, mean trip time, the access Gini, and heat exposed waiting each report against the baseline. The map layers switch between baseline, plan, and change, so gains and losses stay visible by neighborhood.
+
+Selecting a neighborhood shows resident shares and trip minutes to the hospital, grocery, school, and jobs, before and after the plan, plus its heat exposed wait.
+
+Each bus line takes whole buses on a slider; headways and the bus hour budget update immediately. Shelters sit at stops on flexible lines and cut modeled heat exposure by eighty percent. One click restores the exact search of every feasible fleet allocation.
+
+The waiting model runs expected wait at half a headway, or an exact timetable that boards the next departure at a set clock time. Under the heat advisory, walking slows and sunny streets cost extra minutes.
+
+In the midsize rail city, coverage rises from forty two to fifty four percent while the access Gini improves. In the rural county, the honest limit shows instead. Six neighborhoods sit beyond forty five minutes from the hospital under every feasible allocation, and Far Mesa's independent minimum is over two hours.
+
+The methods panel spells out every assumption. Exports write GeoJSON, an equity CSV, and an audit JSON carrying a SHA-256 digest. Feeding the file back verifies the digest and replays every result deterministically.
+
+A one page council brief renders in English and Spanish and prints standalone. Three hundred fifty one model tests pass, and every city is labeled synthetic demonstration data. TransitGap makes the equity trade-offs explicit, then proves its work.
