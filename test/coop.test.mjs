@@ -239,16 +239,50 @@ test('timetable mode evaluates a co-op without error', () => {
 
 test('co-op map buttons report real pickup state to screen readers', () => {
   const city = CITIES[0];
-  const ev = evaluateCoop(city, fits.get(city.id).plan, BASIC, { pickups: ['east', 'arroyo'], anchor: 'grocery' });
+  const ev = evaluateCoop(city, fits.get(city.id).plan, BASIC, { pickups: ['east'], anchor: 'grocery' });
   const wrap = { id: 'coop-map', innerHTML: '', querySelectorAll: () => [] };
   renderMap(wrap, { city: ev.city, layer: 'change', baseline: ev.before, result: ev.after,
     plan: ev.plan, pickups: ev.coop.pickups }, () => {});
   const stateOf = id => wrap.innerHTML
     .match(new RegExp(`data-neighborhood="${id}"[^>]*aria-pressed="(true|false)"`))?.[1];
+  const nameOf = id => wrap.innerHTML.match(new RegExp('data-neighborhood="' + id + '"[^>]*aria-label="([^"]+)"'))?.[1];
   assert.equal(wrap.innerHTML.match(/data-neighborhood="/g).length, city.neighborhoods.length);
   for (const id of ev.coop.pickups) assert.equal(stateOf(id), 'true', `${id} must announce as a pickup`);
   for (const id of ids(city).filter(id => !ev.coop.pickups.includes(id))) {
     assert.equal(stateOf(id), 'false', `${id} must announce as not picked`);
   }
   assert.match(wrap.innerHTML, /toggle co-op pickups/);
+  for (const id of ev.coop.pickups) assert.match(nameOf(id), /pickup stop/, id);
+  for (const id of ids(city).filter(id => !ev.coop.pickups.includes(id))) {
+    assert.doesNotMatch(nameOf(id), /pickup stop/, id + ' must not claim to be a pickup stop');
+  }
+});
+
+test('co-op evaluations retain an independent snapshot of the waiting mode and departure', () => {
+  const city = CITIES[0];
+  const options = { ...BASIC, mode: 'timetable', departure: 481 };
+  const ev = evaluateCoop(city, city.baseline, options, { pickups: ['east'], anchor: 'grocery' });
+  assert.deepEqual(ev.options, options);
+  options.mode = 'expected';
+  options.departure = 600;
+  assert.equal(ev.options.mode, 'timetable');
+  assert.equal(ev.options.departure, 481);
+  assert.deepEqual(JSON.parse(actionBriefJson(city, options, ev)).options, ev.options);
+});
+
+test('timetable co-op exports describe scheduled waits at the actual departure time', () => {
+  const city = CITIES[0];
+  const options = { ...BASIC, mode: 'timetable', departure: 481 };
+  const input = { pickups: ['east'], anchor: 'grocery' };
+  const scheduled = evaluateCoop(city, city.baseline, options, input);
+  const expected = evaluateCoop(city, city.baseline, { ...options, mode: 'expected' }, input);
+  assert.notEqual(scheduled.gains.meanAfter, expected.gains.meanAfter);
+  const timetableBrief = actionBrief(city, scheduled);
+  assert.match(timetableBrief, /scheduled timetable/i);
+  assert.match(timetableBrief, /08:01/);
+  assert.doesNotMatch(timetableBrief, /half the headway|half-headway/i);
+  const expectedBrief = actionBrief(city, expected);
+  assert.match(expectedBrief, /half the headway|half-headway/i);
+  assert.match(expectedBrief, /expected wait/i);
+  assert.doesNotMatch(expectedBrief, /scheduled timetable/i);
 });

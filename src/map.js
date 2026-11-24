@@ -40,7 +40,7 @@ export function renderMap(wrap, state, select) {
     const chosen = pressed.has(n.id);
     const text = layer === 'change' ? delta(a - b) : `${amount}/4`;
     const label = (layer === 'change' ? `${n.name}, ${b} to ${a} services` : `${n.name}, ${amount} of 4 services`)
-      + (pickups ? ', pickup stop' : '');
+      + (pickups != null && chosen ? ', pickup stop' : '');
     names.push(`<text class="zone-name" x="${x(n.x)}" y="${y(n.y) + 38}" text-anchor="middle">${n.name}</text>`);
     return `<g class="neighborhood ${layer === 'change' ? diffClass(a - b) : `c${amount}`}"
       data-neighborhood="${n.id}" role="button" tabindex="0" aria-label="${label}" aria-pressed="${chosen}"

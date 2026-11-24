@@ -2,8 +2,9 @@
 // A volunteer loop is modeled as one more two-way line in the same street and
 // transit graph the bus plan uses, so walking to a pickup, waiting, riding and
 // transferring to a bus all come out of the existing Dijkstra search.
-import { ACCESS_LIMIT, HOSPITAL_LIMIT, assess, key, walkSeconds } from './model.js';
+import { ACCESS_LIMIT, HOSPITAL_LIMIT, assess, key, normalizeOptions, walkSeconds } from './model.js';
 import { sha256Hex } from './sha256.js';
+import { formatTime } from './brief.js';
 
 export const COOP_LIMITS = Object.freeze({
   vehicles: [1, 4], seats: [4, 14], hours: [1, 8], days: [1, 7], pickups: [1, 3]
@@ -136,7 +137,7 @@ export function evaluateCoop(city, plan, options, input, before = assess(city, p
   const shiftsPerWeek = coop.vehicles * coop.days;
   return {
     coop, order: built.order, cycle: built.cycle, oneWay: built.oneWay, headway: built.headway, line: built.line,
-    city: built.city, plan: built.plan, before, after, rows,
+    city: built.city, plan: built.plan, options: normalizeOptions(options), before, after, rows,
     gains: {
       coverageBefore: before.metrics.coverage, coverageAfter: after.metrics.coverage,
       coveragePP: (after.metrics.coverage - before.metrics.coverage) * 100,
@@ -182,6 +183,9 @@ const names = (city, list) => list.map(id => city.neighborhoods.find(n => n.id =
 
 export function actionBrief(city, ev) {
   const { coop, gains, capacity } = ev;
+  const waiting = ev.options.mode === 'timetable'
+    ? 'Waiting follows the scheduled timetable for trips departing at ' + formatTime(ev.options.departure) + '.'
+    : 'Waiting is half the headway (expected wait).';
   const host = coop.host || 'Host organization (school, senior center or faith group)';
   const stops = [...names(city, ev.order), SERVICE_NAMES[coop.anchor]];
   const lines = [
@@ -231,7 +235,7 @@ export function actionBrief(city, ev) {
     '',
     '## Method',
     '',
-    `The loop is added as one more two-way line in the same street and transit graph the bus plan uses. Driving runs at ${DRIVE_METERS_PER_MIN} m per minute with ${DWELL_MIN} min at each pickup and ${LAYOVER_MIN} min turnaround at each end. Waiting is half the headway. Gains hold only during the service window. Fares, booking, detours and driver availability are not modeled.`,
+    `The loop is added as one more two-way line in the same street and transit graph the bus plan uses. Driving runs at ${DRIVE_METERS_PER_MIN} m per minute with ${DWELL_MIN} min at each pickup and ${LAYOVER_MIN} min turnaround at each end. ${waiting} Gains hold only during the service window. Fares, booking, detours and driver availability are not modeled.`,
     ''
   ];
   return lines.join('\n');
@@ -239,7 +243,7 @@ export function actionBrief(city, ev) {
 
 export function actionBriefJson(city, options, ev) {
   const payload = {
-    tool: 'TransitGap community shuttle co-op', version: 1, city: city.id, options,
+    tool: 'TransitGap community shuttle co-op', version: 1, city: city.id, options: ev.options,
     coop: ev.coop, order: ev.order, cycle: ev.cycle,
     gains: { ...ev.gains, coveragePP: Number(ev.gains.coveragePP.toFixed(6)) },
     capacity: ev.capacity
