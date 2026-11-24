@@ -18,7 +18,8 @@
       <div class="wordmark"><img src="./mark.svg" alt="" width="34" height="34"><h1>TransitGap</h1></div>
       <nav aria-label="Workbench navigation">
         <a href="#workbench">Compare</a>
-        <a href="#policy">Policy lab</a>
+        <a href="#coop"><span class="wide-only">Shuttle co-op</span><span class="narrow-only">Co-op</span></a>
+        <a href="#policy"><span class="wide-only">Policy lab</span><span class="narrow-only">Policy</span></a>
         <a href="#method">Methods</a>
         <a class="brief-link" href="#council">Council brief <span aria-hidden="true">&nearr;</span></a>
       </nav>
@@ -69,7 +70,6 @@
         <section class="allocation" aria-labelledby="allocation-title">
           <div class="section-head"><h2 id="allocation-title">Service allocation</h2><button id="optimize" class="primary" type="button">Restore optimized plan</button></div>
           <p id="budget" aria-live="polite" class="budget"></p>
-          <p class="hint">Free a bus on one line before adding it to another. The slider changes headway in whole-bus steps.</p>
           <div id="routes" class="routes"></div>
           <details class="shade-controls">
             <summary>Choose shelter stops</summary>
@@ -77,6 +77,74 @@
           </details>
         </section>
       </div>
+      <section id="coop" class="coop" aria-labelledby="coop-title">
+        <div class="section-head"><h2 id="coop-title">Community shuttle co-op</h2>
+          <div class="coop-actions">
+            <button type="button" id="coop-learn" aria-haspopup="dialog">Methodology and lessons</button>
+            <button type="button" id="coop-copy">Copy brief</button>
+            <button type="button" id="coop-md">Action brief .md</button>
+            <button type="button" id="coop-json">Signed brief .json</button>
+            <button type="button" id="coop-suggest" class="primary">Suggest the best loop</button>
+          </div>
+        </div>
+        <div class="coop-grid">
+          <form id="coop-form" class="coop-controls" aria-label="Co-op loop settings">
+            <fieldset class="coop-need">
+              <legend>Pickup neighborhoods, most underserved first</legend>
+              <div id="coop-pickups" class="pickup-list"></div>
+            </fieldset>
+            <label class="field">Destination
+              <select id="coop-anchor"><option value="hospital">Hospital</option><option value="grocery">Grocery</option><option value="school">High school</option><option value="jobs">Job center</option></select>
+            </label>
+            <div class="coop-steppers">
+              <label class="field">Volunteer vehicles<input id="coop-vehicles" type="number" min="1" max="4" step="1" value="2" inputmode="numeric"></label>
+              <label class="field">Seats per vehicle<input id="coop-seats" type="number" min="4" max="14" step="1" value="6" inputmode="numeric"></label>
+              <label class="field">Hours a day<input id="coop-hours" type="number" min="1" max="8" step="1" value="3" inputmode="numeric"></label>
+              <label class="field">Days a week<input id="coop-days" type="number" min="1" max="7" step="1" value="5" inputmode="numeric"></label>
+            </div>
+            <label class="field">Host organization<input id="coop-host" type="text" maxlength="60" autocomplete="organization" placeholder="School, senior center or faith group"></label>
+          </form>
+          <div class="coop-main">
+            <dl id="coop-metrics" class="metrics coop-metrics"></dl>
+            <figure class="coop-map">
+              <figcaption id="coop-route"></figcaption>
+              <div id="coop-map" class="map-wrap"></div>
+              <div class="legend"><span class="legend-title">Services gained</span><span><i class="swatch same" aria-hidden="true"></i>Unchanged</span><span><i class="swatch gain" aria-hidden="true"></i>More</span><span><i class="coop-key" aria-hidden="true"></i>Co-op loop</span></div>
+            </figure>
+            <dl id="coop-capacity" class="coop-capacity"></dl>
+          </div>
+        </div>
+        <div class="coop-lower">
+          <div class="compare-scroll"><table id="coop-table" class="coop-table"></table></div>
+        </div>
+        <p id="coop-status" class="coop-status" role="status"></p>
+      </section>
+      <dialog id="learn-drawer" class="drawer" aria-labelledby="learn-title">
+        <div class="drawer-head"><h2 id="learn-title">Methodology and lessons</h2><button type="button" id="learn-close" class="drawer-close">Close</button></div>
+        <div class="drawer-body">
+          <h3>How the loop is modeled</h3>
+          <p>A volunteer loop becomes one more two-way line in the same street and transit graph the bus plan uses. Dijkstra then finds each resident's fastest trip, so walking to a pickup, waiting, riding and transferring to a bus all come from one search.</p>
+          <ol class="equations">
+            <li><span>Leg minutes</span><code>ceil(blocks &times; block meters / 450) + 1</code></li>
+            <li><span>Round trip</span><code>2 &times; sum of legs + 2 &times; 4 min turnaround</code></li>
+            <li><span>Headway</span><code>round trip / vehicles</code></li>
+            <li><span>Expected wait</span><code>headway / 2</code></li>
+            <li><span>Access score</span><code>1 / (1 + mean trip minutes / 30)</code></li>
+            <li><span>Walk shed</span><code>walk to the nearest pickup &le; 10 min</code></li>
+          </ol>
+          <h3>How the suggestion is chosen</h3>
+          <p>Every destination is tried with every single pickup and every pair of pickups. Each candidate is scored by the service pairs that transit-dependent and senior residents newly reach within 30 minutes, plus a large bonus for each neighborhood brought back within 45 minutes of the hospital, minus the round-trip minutes.</p>
+          <h3>Lessons from building it</h3>
+          <ul>
+            <li>Treating the shuttle as one more line meant transfers to buses appeared with no special code, and the same tests that guard the bus model guard the shuttle.</li>
+            <li>A loop can raise total coverage while the access Gini gets worse, as the suggested rail city loop does. The planner shows both numbers instead of hiding the trade.</li>
+            <li>Ranking by the share of residents who are transit-dependent or senior moved the rural suggestion from the biggest towns to the hamlets farthest from the hospital.</li>
+            <li>Seats per priority resident is the honest capacity check: a loop that reaches thousands of residents with a few hundred seats a week needs booking rules before it needs more drivers.</li>
+          </ul>
+          <h3>Limits</h3>
+          <p>All cities, populations and services are synthetic. Gains hold only inside the service window. Fares, booking, detours, wheelchair loading time and driver no-shows are not modeled. The brief is a starting point for a conversation with neighbors and the transit agency, not a forecast.</p>
+        </div>
+      </dialog>
       <section id="policy" class="policy" aria-labelledby="policy-title">
         <div class="section-head"><h2 id="policy-title">Policy intervention lab</h2>
           <div class="policy-actions">

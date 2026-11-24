@@ -32,6 +32,27 @@ On a public host, serve this directory over HTTPS with the `/transitgap/` prefix
 - The address-bar hash (`#scenario=...`) bookmarks a preset or slider package for a deterministic reload. One-click exports produce a comparator CSV, a Markdown brief and a signed JSON impact bundle whose SHA-256 digest covers the canonical inputs and outputs; the in-page verifier replays the model and flags edits. Hashing uses a pure-JavaScript SHA-256 implementation, so verification works without Web Crypto.
 - The "Verify math" button runs the in-page self-test suite: weighted-Gini bounds, population-weight conservation, intervention dominance invariants, SHA-256 known-answer vectors, URL hash round-trips, CSV injection escaping and digest tamper detection, with a live pass/fail badge.
 
+## Community shuttle co-op
+
+Residents, schools and senior centers in a transit desert can plan a volunteer carpool or shuttle loop that feeds the bus network.
+
+- Pickup neighborhoods are listed most underserved first: services still beyond 30 minutes on the bus plan, times residents who are transit-dependent or senior. Tick up to three, or click a neighborhood on the co-op map, and choose the destination (hospital, grocery, high school or job center), vehicles, seats, hours a day and days a week.
+- The loop is added as one more two-way line in the same street and transit graph, so walking to a pickup, waiting, riding and transferring to a bus all come out of the existing Dijkstra search. A leg takes `ceil(blocks * block meters / 450) + 1` minutes, the round trip is `2 * legs + 8` minutes of turnaround, headway is `round trip / vehicles` and the wait is half the headway.
+- "Suggest the best loop" tries every destination with every single pickup and every pair (144 loops per city) and keeps the one that adds the most service pairs within 30 minutes for transit-dependent and senior residents, with a large bonus for each neighborhood brought back within 45 minutes of the hospital.
+- The planner reports 30-minute access, access Gini, residents gaining a service, neighborhoods over 45 minutes from the hospital, the ten-minute walk shed around pickups, driver shifts, weekly seats and seats per priority resident.
+- The Community Action Brief copies to the clipboard or downloads as Markdown (route, modeled gains, per-neighborhood table, volunteer plan and a safety checklist) or as JSON with a SHA-256 digest over the payload. The host organization name is stripped of markup before it reaches the brief.
+- "Methodology and lessons" opens a drawer with the equations, the search rule, lessons from the build and the model's limits.
+
+Suggested loops with the default two vehicles, six seats, three hours a day (heat advisory, expected waiting, optimized bus plan):
+
+| City | Loop | Round trip | 30-minute coverage | Access Gini | Over 45 min from hospital |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Sunbelt suburb | Citrus Row to Arroyo Flats to Job center | 34 min | 41.5% to 63.1% | 0.0794 to 0.0733 | 0 to 0 |
+| Rail and feeders | Orchard to North Loop to Job center | 28 min | 54.3% to 69.0% | 0.0760 to 0.0813 | 0 to 0 |
+| Rural county | Pioneer Ridge to Willow Hollow to Hospital | 50 min | 34.8% to 37.7% | 0.1882 to 0.1587 | 6 to 4 |
+
+In the rail city the loop raises coverage while the access Gini worsens; the planner shows both. All gains are modeled on synthetic cities and hold only inside the service window. Fares, booking, detours, boarding time for wheelchairs and driver availability are not modeled.
+
 ## Model
 
 Each contiguous grid is a bidirectional street graph with one residential origin per neighborhood. Destinations are one hospital, grocery store, high school and job center. Neighbors are one block away. Directed route states separate boarding, remaining onboard and alighting, so transfers incur a new wait and through trips do not. The Dijkstra solver minimizes modeled door-to-door earliest arrival. Expected wait is half a headway for each boarding, an assumption of random arrivals rather than a measured transfer delay. The exact mode uses the next departure at each stop in a repeating FIFO timetable.
@@ -65,3 +86,5 @@ The policy impact bundle signs the same way: a canonical payload of city, option
 ![Sunbelt workbench](docs/desktop.png)
 
 ![Rural equity inspection](docs/equity.png)
+
+![Rural shuttle co-op planner](docs/coop.png)

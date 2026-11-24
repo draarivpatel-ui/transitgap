@@ -52,7 +52,7 @@ Use editorial serif for the brand, section heads and comparison values. Keep con
 
 ## Layout
 
-Put scenario controls first, then measures, then the map next to its neighborhood inspector. Under 900 px, put the inspector directly below the map. Under 570 px, keep two comparison columns. The policy lab follows as a second full-width section: preset buttons, a comparator table, paired before/after maps, reach-time bands and a leverage table; wide tables scroll inside their own panels instead of overflowing the page.
+Put scenario controls first, then measures, then the map next to its neighborhood inspector. Under 900 px, put the inspector directly below the map. Under 570 px, keep two comparison columns. The policy lab follows as a second full-width section: preset buttons, a comparator table, paired before/after maps, reach-time bands and a leverage table; wide tables scroll inside their own panels instead of overflowing the page. The community shuttle co-op sits between the workbench and the policy lab: a sage control panel with ranked pickup chips beside metrics, a change map with the loop drawn as a dotted rust line, and a capacity grid; its methodology opens in a right-side drawer with a deep green head.
 
 ## Elevation & Depth
 

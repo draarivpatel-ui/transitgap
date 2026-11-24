@@ -1,11 +1,11 @@
 const PREFIX = 'transitgap-';
-const VERSION = `${PREFIX}v3`;
+const VERSION = `${PREFIX}v4`;
 const BASE = new URL(self.registration.scope);
 const files = [
   './', './index.html', './style.css', './mark.svg', './src/app.js', './src/map.js',
   './src/brief.js', './src/cities.js', './src/model.js', './src/audit.js',
   './src/interventions.js', './src/policy.js', './src/policyview.js',
-  './src/selftest.js', './src/sha256.js'
+  './src/selftest.js', './src/sha256.js', './src/coop.js'
 ].map(path => new URL(path, BASE).href);
 const shell = { origin: BASE.origin, entries: new Set(files) };
 

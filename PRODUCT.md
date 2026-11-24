@@ -16,7 +16,7 @@ The implementation brief names city councils as the brief's audience. Planning s
 
 ## Product Purpose
 
-Compare bus frequency and stop shade under a fixed budget, and compare named policy interventions against the baseline with equity indices and planning-model costs. Show both aggregate changes and the neighborhoods a budget-constrained plan still leaves far from essential services.
+Compare bus frequency and stop shade under a fixed budget, and compare named policy interventions against the baseline with equity indices and planning-model costs. Show both aggregate changes and the neighborhoods a budget-constrained plan still leaves far from essential services, and let residents, schools and senior centers plan a volunteer shuttle co-op that feeds the bus network and export a Community Action Brief.
 
 ## Capabilities and Constraints
 

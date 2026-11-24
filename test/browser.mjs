@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyAudit } from '../src/audit.js';
 import { verifyPolicyJson } from '../src/policy.js';
+import { sha256Hex } from '../src/sha256.js';
 import { serve } from './serve.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -258,6 +259,58 @@ try {
   }
   check('Signed policy exports download, verify in page and detect tampering');
 
+  await until(() => cdp.evaluate(`/Searched 144 loops for Rural county/.test(document.querySelector('#coop-status').textContent)
+    && document.querySelectorAll('#coop-map [data-neighborhood]').length === 8
+    && document.querySelectorAll('#coop-pickups input').length === 8
+    && document.querySelectorAll('#coop-metrics > div').length === 4`), 'co-op planner renders');
+  assert.match(await text('coop-route'), /Hospital, every/);
+  check('Co-op planner suggests a rural loop to the hospital on load');
+  const unchecked = await cdp.evaluate(`document.querySelector('#coop-pickups input:not(:checked):not(:disabled)').value`);
+  await click(`#coop-pickups input[value="${unchecked}"]`);
+  await until(() => cdp.evaluate(`document.querySelector('#coop-pickups input[value="${unchecked}"]').checked
+    && /Loop now runs/.test(document.querySelector('#coop-status').textContent)`), 'pickup toggle');
+  await click(`#coop-map [data-neighborhood="${unchecked}"] .zone`);
+  await until(() => cdp.evaluate(`!document.querySelector('#coop-pickups input[value="${unchecked}"]').checked`), 'map pickup toggle');
+  await select('coop-anchor', 'grocery');
+  await until(async () => /Grocery, every/.test(await text('coop-route')), 'anchor change');
+  await select('coop-vehicles', '4');
+  await until(async () => /Grocery trip/.test(await text('coop-table')), 'vehicles change');
+  await click('#coop-suggest');
+  await until(async () => /Searched 144 loops/.test(await text('coop-status')), 'suggest again');
+  assert.ok((await text('coop-status')).includes((await text('coop-route')).split(', every')[0]));
+  check('Pickup chips, map zones, destination and vehicle count re-plan the loop with real input');
+  await cdp.evaluate(`(() => { const h = document.getElementById('coop-host'); h.value = 'Willow <b>Senior</b> Center'; h.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  for (const ext of ['md', 'json']) {
+    const name = `transitgap-rural-coop-brief.${ext}`;
+    await click(`#coop-${ext}`);
+    await until(async () => (await readdir(downloads)).includes(name), name);
+    const content = await readFile(join(downloads, name), 'utf8');
+    if (ext === 'md') {
+      assert.match(content, /^# Community Action Brief: Rural county/);
+      assert.ok(content.includes('Prepared for Willow bSenior/b Center.'));
+    } else {
+      const { sha256, ...payload } = JSON.parse(content);
+      assert.equal(sha256, sha256Hex(JSON.stringify(payload)));
+      assert.equal(payload.coop.vehicles, 4);
+    }
+  }
+  check('Community Action Brief downloads as Markdown and signed JSON with an escaped host name');
+  await click('#coop-copy');
+  await until(async () => /Copied|blocked/.test(await text('coop-status')), 'copy status');
+  await click('#coop-learn');
+  assert.equal(await cdp.evaluate(`document.querySelector('#learn-drawer').open
+    && document.querySelectorAll('#learn-drawer .equations li').length === 6`), true);
+  await until(async () => {
+    await cdp.call('Page.captureScreenshot', { format: 'png' });
+    return cdp.evaluate(`document.getAnimations().every(a => a.playState === 'finished')`);
+  }, 'drawer settles');
+  await click('#learn-close');
+  await cdp.call('Page.captureScreenshot', { format: 'png' });
+  assert.equal(await cdp.evaluate(`document.querySelector('#learn-drawer').open`), false);
+  check('Copy brief reports its result and the methodology drawer opens and closes');
+  await cdp.evaluate(`(() => { const h = document.getElementById('coop-host'); h.value = ''; h.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('#coop').scrollIntoView(); })()`);
+  await save('coop');
+
   for (const language of ['en', 'es']) {
     await select('language', language);
     await cdp.call('Emulation.setEmulatedMedia', { media: 'print' });
@@ -280,6 +333,16 @@ try {
   await until(() => cdp.evaluate(`document.querySelector('#compare tr.current')?.dataset.scenario === 'shuttle'`), 'mobile preset');
   await noOverflow(390, 844);
   check('Mobile preset switching keeps the layout inside the viewport');
+  await click('#coop-learn');
+  assert.equal(await cdp.evaluate(`(() => { const r = document.querySelector('#learn-drawer').getBoundingClientRect(); return r.width <= 390 && r.left >= 0; })()`), true);
+  await until(async () => {
+    await cdp.call('Page.captureScreenshot', { format: 'png' });
+    return cdp.evaluate(`document.getAnimations().every(a => a.playState === 'finished')`);
+  }, 'drawer settles');
+  await click('#learn-close');
+  await cdp.call('Page.captureScreenshot', { format: 'png' });
+  await noOverflow(390, 844);
+  check('Mobile methodology drawer fits the viewport');
   if (process.env.CAPTURE_MOBILE === '1') {
     await cdp.evaluate('window.scrollTo(0, 0)');
     await save('mobile');

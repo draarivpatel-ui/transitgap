@@ -8,6 +8,8 @@ import { applyCustom, applyPreset, clampCustom, corridorLeverage, CUSTOM_DEFAULT
 import { buildPolicyJson, decodeScenario, encodeScenario, MAX_POLICY_BYTES,
   policyCsv, policyMarkdown, verifyPolicyJson } from './policy.js';
 import { runSelfTests } from './selftest.js';
+import { actionBrief, actionBriefJson, COOP_DEFAULTS, COOP_LIMITS, evaluateCoop, needRanking,
+  SERVICE_NAMES, suggestCoop } from './coop.js';
 import { customOutputs, renderBands, renderCompare, renderLeverage, renderPresets,
   renderScenarioMaps, renderVerify } from './policyview.js';
 
@@ -17,7 +19,8 @@ const defaultSelected = cityId => cityId === 'rural' ? 'mesa' : cityId === 'rail
 const state = {
   city: CITIES[0], options: { ...BASIC }, plan: null, result: null, baseline: null, fit: null,
   kind: 'optimized', layer: 'plan', selected: 'east', language: 'en',
-  policy: { preset: 'baseline', custom: { ...CUSTOM_DEFAULTS }, evals: null, leverage: null, dirty: true }
+  policy: { preset: 'baseline', custom: { ...CUSTOM_DEFAULTS }, evals: null, leverage: null, dirty: true },
+  coop: { input: null, ev: null, cityId: null }
 };
 const n = (value, digits = 1) => value.toFixed(digits);
 const pct = value => `${n(value * 100, 0)}%`;
@@ -235,6 +238,146 @@ function run({ reset = false, controls = false, recalculate = true } = {}) {
   syncRoutes();
   renderResults();
   if (recalculate) renderPolicy();
+  refreshCoop();
+}
+
+// Community shuttle co-op planner
+const COOP_FIELDS = { vehicles: 'coop-vehicles', seats: 'coop-seats', hours: 'coop-hours', days: 'coop-days' };
+const whole = value => Math.round(value).toLocaleString('en-US');
+
+function coopSettings() {
+  const settings = {};
+  for (const [field, id] of Object.entries(COOP_FIELDS)) {
+    const [lo, hi] = COOP_LIMITS[field];
+    const value = Math.round(Number($(id).value));
+    settings[field] = Number.isFinite(value) ? Math.min(hi, Math.max(lo, value)) : COOP_DEFAULTS[field];
+  }
+  settings.host = $('coop-host').value;
+  return settings;
+}
+
+function refreshCoop({ suggest = false } = {}) {
+  const { city, plan, options, coop } = state;
+  try {
+    if (suggest || !coop.input || coop.cityId !== city.id) {
+      const ev = suggestCoop(city, plan, options, coopSettings());
+      coop.input = { pickups: [...ev.coop.pickups], anchor: ev.coop.anchor };
+      coop.cityId = city.id;
+      coop.ev = ev;
+      $('coop-status').textContent = `Searched ${ev.searched} loops for ${city.label}. Best: ${loopText(ev)}.`;
+    } else {
+      coop.ev = evaluateCoop(city, plan, options, { ...coopSettings(), ...coop.input }, state.result);
+    }
+  } catch (error) {
+    $('coop-status').textContent = `Co-op planner could not run: ${error.message}.`;
+    return;
+  }
+  renderCoop();
+}
+
+const loopText = ev => [...ev.order.map(id => ev.rows.find(r => r.id === id).name), SERVICE_NAMES[ev.coop.anchor]].join(' → ');
+
+function renderCoop() {
+  const { city, coop } = state;
+  const ev = coop.ev;
+  const need = needRanking(city, state.result);
+  const picked = new Set(coop.input.pickups);
+  const full = picked.size >= COOP_LIMITS.pickups[1];
+  $('coop-pickups').replaceChildren(...need.map(entry => {
+    const label = document.createElement('label');
+    label.className = 'pickup';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = entry.id;
+    input.checked = picked.has(entry.id);
+    input.disabled = !input.checked && full;
+    const name = document.createElement('span');
+    name.className = 'pickup-name';
+    name.textContent = entry.name;
+    const reach = document.createElement('span');
+    reach.className = `pickup-reach c${4 - entry.missing.length}`;
+    reach.textContent = `${4 - entry.missing.length}/4`;
+    reach.title = `${4 - entry.missing.length} of 4 services within 30 minutes on the bus plan`;
+    const people = document.createElement('span');
+    people.className = 'pickup-people';
+    people.textContent = `${whole(entry.priority)} priority`;
+    people.title = 'Transit-dependent or senior residents';
+    label.append(input, name, reach, people);
+    return label;
+  }));
+  $('coop-anchor').value = coop.input.anchor;
+  const g = ev.gains;
+  const reachedPop = ev.rows.filter(r => r.gained.length).reduce((sum, r) => sum + r.pop, 0);
+  const hospBefore = ev.before.metrics.hospitalOver.length;
+  const cards = [
+    ['30-min access', `${n(g.coverageAfter * 100)}%`, g.coveragePP, 1, ' pp', true, `Bus plan ${n(g.coverageBefore * 100)}%`],
+    ['Access Gini', n(g.giniAfter, 3), Number((g.giniAfter - g.giniBefore).toFixed(3)), 3, '', false, `Bus plan ${n(g.giniBefore, 3)}`],
+    ['Residents gaining a service', whole(reachedPop), null, 0, '', true, `${g.reached.length} of ${city.neighborhoods.length} neighborhoods`],
+    ['Over 45 min from hospital', String(g.hospitalStill.length), g.hospitalStill.length - hospBefore, 0, '', false, `Bus plan ${hospBefore}`]
+  ];
+  $('coop-metrics').replaceChildren(...cards.map(([label, value, d, digits, unit, up, base]) => {
+    const wrap = document.createElement('div');
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    dd.append(strong);
+    if (d !== null) {
+      const rounded = Number(d.toFixed(digits));
+      const span = document.createElement('span');
+      span.className = `delta ${!rounded ? 'flat' : (rounded > 0) === up ? 'better' : 'worse'}`;
+      span.textContent = `${signed(rounded, digits)}${unit}`;
+      dd.append(span);
+    }
+    const note = document.createElement('span');
+    note.className = 'baseline-label';
+    note.textContent = base;
+    wrap.append(dt, dd, note);
+    return wrap;
+  }));
+  $('coop-route').textContent = `${loopText(ev)}, every ${short(ev.headway)} min`;
+  renderMap($('coop-map'), { city: ev.city, layer: 'change', baseline: ev.before, result: ev.after,
+    plan: ev.plan, selected: null }, togglePickup);
+  const head = '<thead><tr><th scope="col">Neighborhood</th><th scope="col">Walk to pickup</th><th scope="col">Services within 30 min</th>'
+    + `<th scope="col">${SERVICE_NAMES[ev.coop.anchor]} trip</th><th scope="col">Newly reached</th></tr></thead>`;
+  const body = ev.rows.map(r => `<tr class="${picked.has(r.id) ? 'current' : ''}"><th scope="row">${r.name}</th>`
+    + `<td class="${r.inShed ? 'within' : ''}">${n(r.walkMin)} min</td><td>${r.beforeWithin} → ${r.afterWithin}</td>`
+    + `<td>${n(r.anchorBefore)} → ${n(r.anchorAfter)} min</td>`
+    + `<td>${r.gained.length ? r.gained.map(s => SERVICE_NAMES[s]).join(', ') : '<span class="none">None</span>'}</td></tr>`).join('');
+  $('coop-table').innerHTML = `${head}<tbody>${body}</tbody>`;
+  const c = ev.capacity;
+  const facts = [
+    ['Round trip', `${ev.cycle} min`], ['Pickup every', `${short(ev.headway)} min`],
+    ['Driver shifts a week', `${c.shiftsPerWeek} (${c.driverHoursPerWeek} h)`], ['Seats a week', whole(c.weeklySeats)],
+    ['Ten-minute walk shed', `${whole(g.shedResidents)} residents`], ['Seats per priority resident', `${c.seatsPerEligible.toFixed(2)} a week`]
+  ];
+  $('coop-capacity').replaceChildren(...facts.map(([label, value]) => {
+    const wrap = document.createElement('div');
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    wrap.append(dt, dd);
+    return wrap;
+  }));
+}
+
+function togglePickup(id) {
+  const pickups = state.coop.input.pickups;
+  const next = pickups.includes(id) ? pickups.filter(p => p !== id) : [...pickups, id];
+  if (!next.length) {
+    $('coop-status').textContent = 'Keep at least one pickup neighborhood.';
+    renderCoop();
+    return;
+  }
+  if (next.length > COOP_LIMITS.pickups[1]) {
+    $('coop-status').textContent = `A loop serves at most ${COOP_LIMITS.pickups[1]} pickups. Clear one first.`;
+    return;
+  }
+  state.coop.input.pickups = next;
+  refreshCoop();
+  $('coop-status').textContent = `Loop now runs ${loopText(state.coop.ev)}.`;
 }
 
 $('scenario').replaceChildren(...CITIES.map(city => new Option(city.label, city.id)));
@@ -296,6 +439,50 @@ function download(content, extension, type, city) {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 2500);
 }
+
+$('coop-pickups').addEventListener('change', event => {
+  if (event.target.matches('input[type=checkbox]')) togglePickup(event.target.value);
+});
+$('coop-anchor').addEventListener('change', event => {
+  state.coop.input.anchor = event.target.value;
+  refreshCoop();
+  $('coop-status').textContent = `Loop now ends at the ${SERVICE_NAMES[event.target.value].toLowerCase()}.`;
+});
+for (const id of Object.values(COOP_FIELDS)) $(id).addEventListener('change', () => refreshCoop());
+$('coop-host').addEventListener('change', () => refreshCoop());
+$('coop-form').addEventListener('submit', event => event.preventDefault());
+$('coop-suggest').addEventListener('click', () => refreshCoop({ suggest: true }));
+$('coop-md').addEventListener('click', () => {
+  download(actionBrief(state.city, state.coop.ev), 'md', 'text/markdown;charset=utf-8', `${state.city.id}-coop-brief`);
+  $('coop-status').textContent = 'Prepared the Community Action Brief in Markdown.';
+});
+$('coop-json').addEventListener('click', () => {
+  download(actionBriefJson(state.city, state.options, state.coop.ev), 'json', 'application/json', `${state.city.id}-coop-brief`);
+  $('coop-status').textContent = 'Prepared the signed brief. Its SHA-256 covers every field above it.';
+});
+$('coop-copy').addEventListener('click', async () => {
+  const text = actionBrief(state.city, state.coop.ev);
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+  } catch {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.className = 'sr-only';
+    document.body.append(area);
+    area.select();
+    try { copied = document.execCommand('copy'); } catch { copied = false; }
+    area.remove();
+  }
+  $('coop-status').textContent = copied ? 'Copied the Community Action Brief. Paste it into an email or a shared doc.'
+    : 'This browser blocked copying. Use Action brief .md instead.';
+});
+const drawer = $('learn-drawer');
+$('coop-learn').addEventListener('click', () => drawer.showModal());
+$('learn-close').addEventListener('click', () => drawer.close());
+drawer.addEventListener('click', event => { if (event.target === drawer) drawer.close(); });
 
 let auditAction = 0;
 document.querySelectorAll('[data-export]').forEach(button => button.addEventListener('click', async () => {

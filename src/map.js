@@ -17,7 +17,7 @@ export function renderMap(wrap, state, select) {
   }
   const lines = city.lines.map(line => `
     <polyline class="line-casing" points="${line.stops.map(xy).join(' ')}"/>
-    <polyline class="line-path" points="${line.stops.map(xy).join(' ')}" stroke="${line.color}" ${line.id === 'R' ? 'stroke-dasharray="7 4"' : ''}/>`).join('');
+    <polyline class="line-path${line.coop ? ' coop-path' : ''}" points="${line.stops.map(xy).join(' ')}" stroke="${line.color}" ${line.id === 'R' ? 'stroke-dasharray="7 4"' : line.coop ? 'stroke-dasharray="1 9"' : ''}/>`).join('');
   const stations = [...new Map(city.lines.flatMap(line => line.stops).map(p => [key(p), p])).values()];
   const homes = new Set(city.neighborhoods.map(n => key([n.x, n.y])));
   const stops = stations.map(p => {
