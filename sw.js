@@ -1,5 +1,5 @@
 const PREFIX = 'transitgap-';
-const VERSION = `${PREFIX}v6`;
+const VERSION = `${PREFIX}v7`;
 const BASE = new URL(self.registration.scope);
 const files = [
   './', './index.html', './style.css', './mark.svg', './src/app.js', './src/map.js',

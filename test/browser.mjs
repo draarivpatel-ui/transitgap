@@ -332,6 +332,18 @@ try {
   await click('#presets [data-preset="shuttle"]');
   await until(() => cdp.evaluate(`document.querySelector('#compare tr.current')?.dataset.scenario === 'shuttle'`), 'mobile preset');
   await noOverflow(390, 844);
+  await click('.hood-delta summary');
+  const hoodMetrics = await cdp.evaluate(`(() => {
+    const scroller = document.querySelector('.hood-delta-scroll');
+    const table = scroller?.querySelector('table');
+    if (!scroller || !table) return { missing: true, open: document.querySelector('.hood-delta')?.open };
+    const r = scroller.getBoundingClientRect();
+    const tr = table.getBoundingClientRect();
+    return { open: document.querySelector('.hood-delta').open, tableWidth: tr.width, scrollWidth: scroller.scrollWidth, clientWidth: scroller.clientWidth, left: r.left, right: r.right, innerWidth, overflowX: getComputedStyle(scroller).overflowX };
+  })()`);
+  assert.equal(hoodMetrics.open && hoodMetrics.tableWidth > hoodMetrics.clientWidth
+    && hoodMetrics.scrollWidth > hoodMetrics.clientWidth
+    && hoodMetrics.left >= -1 && hoodMetrics.right <= hoodMetrics.innerWidth + 1, true);
   check('Mobile preset switching keeps the layout inside the viewport');
   await click('#coop-learn');
   assert.equal(await cdp.evaluate(`(() => { const r = document.querySelector('#learn-drawer').getBoundingClientRect(); return r.width <= 390 && r.left >= 0; })()`), true);

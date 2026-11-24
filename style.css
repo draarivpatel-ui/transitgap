@@ -231,7 +231,7 @@ footer { display: flex; justify-content: space-between; gap: .55rem; flex-wrap: 
 .policy-map { margin: 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white); overflow: hidden; }
 .policy-map figcaption { padding: .5rem .85rem; font-size: .82rem; font-weight: 750; }
 .policy-map .map-wrap { border-top: 1px solid var(--rule); border-bottom: 0; }
-.bands { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white); padding: .7rem .95rem .85rem; }
+.bands { min-width: 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white); padding: .7rem .95rem .85rem; }
 .bands h3, .leverage-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
 .bands-charts { display: grid; gap: .6rem; margin-top: .5rem; }
 .bands-charts svg { display: block; width: 100%; height: auto; }
@@ -254,7 +254,7 @@ footer { display: flex; justify-content: space-between; gap: .55rem; flex-wrap: 
 .band-legend { padding: .45rem 0 .1rem; }
 .swatch.z0, .swatch.z1, .swatch.z2, .swatch.z3, .swatch.z4 { background: var(--band); }
 .hood-delta { margin-top: .35rem; }
-.hood-delta table { margin-top: .3rem; }
+.hood-delta-scroll { margin-top: .3rem; }
 .hood-delta tr.current { background: #f0f3e6; }
 .leverage-title { margin: 0 0 -.45rem; }
 .cost-notes p { margin: .48rem 0; max-width: 72ch; color: var(--muted); font-size: .86rem; }

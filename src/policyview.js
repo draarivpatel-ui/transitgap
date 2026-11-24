@@ -122,7 +122,7 @@ export function renderBands(el, current, city, selectedId) {
       <span class="legend-title">Marks</span><span>+ hospital, G grocery, S school, J jobs</span>
     </div>
     <details class="hood-delta"><summary>Neighborhood access detail</summary>
-      <table>
+      <div class="compare-scroll hood-delta-scroll"><table>
         <thead><tr><th scope="col">Neighborhood</th><th scope="col">Access</th><th scope="col">Change</th><th scope="col">30-min services</th></tr></thead>
         <tbody>${current.neighborhoods.map(e => {
           const name = city.neighborhoods.find(x => x.id === e.id).name;
@@ -131,7 +131,7 @@ export function renderBands(el, current, city, selectedId) {
             <td class="${liftCls(e.delta)}">${signed(e.delta)}</td>
             <td>${e.withinBefore} &#8594; ${e.withinAfter} of 4</td></tr>`;
         }).join('')}</tbody>
-      </table>
+      </table></div>
     </details>`;
 }
 
