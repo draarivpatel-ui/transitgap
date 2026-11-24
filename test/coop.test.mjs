@@ -6,6 +6,7 @@ import { sha256Hex } from '../src/sha256.js';
 import { actionBrief, actionBriefJson, cleanHost, COOP_DEFAULTS, COOP_LIMITS, coopLine, DRIVE_METERS_PER_MIN,
   DWELL_MIN, evaluateCoop, LAYOVER_MIN, MAX_HOST, needRanking, normalizeCoop, orderStops, SERVICE_IDS,
   SERVICE_NAMES, suggestCoop, walkShed, WALK_SHED_SECONDS, withCoop } from '../src/coop.js';
+import { renderMap } from '../src/map.js';
 
 const fits = new Map(CITIES.map(city => [city.id, optimize(city, BASIC)]));
 const blocks = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
@@ -234,4 +235,20 @@ test('timetable mode evaluates a co-op without error', () => {
   const fit = optimize(city, options);
   const ev = evaluateCoop(city, fit.plan, options, { pickups: ['canal'], anchor: 'grocery' });
   assert.ok(Number.isFinite(ev.gains.meanAfter));
+});
+
+test('co-op map buttons report real pickup state to screen readers', () => {
+  const city = CITIES[0];
+  const ev = evaluateCoop(city, fits.get(city.id).plan, BASIC, { pickups: ['east', 'arroyo'], anchor: 'grocery' });
+  const wrap = { id: 'coop-map', innerHTML: '', querySelectorAll: () => [] };
+  renderMap(wrap, { city: ev.city, layer: 'change', baseline: ev.before, result: ev.after,
+    plan: ev.plan, pickups: ev.coop.pickups }, () => {});
+  const stateOf = id => wrap.innerHTML
+    .match(new RegExp(`data-neighborhood="${id}"[^>]*aria-pressed="(true|false)"`))?.[1];
+  assert.equal(wrap.innerHTML.match(/data-neighborhood="/g).length, city.neighborhoods.length);
+  for (const id of ev.coop.pickups) assert.equal(stateOf(id), 'true', `${id} must announce as a pickup`);
+  for (const id of ids(city).filter(id => !ev.coop.pickups.includes(id))) {
+    assert.equal(stateOf(id), 'false', `${id} must announce as not picked`);
+  }
+  assert.match(wrap.innerHTML, /toggle co-op pickups/);
 });

@@ -5,7 +5,8 @@ const diffClass = dx => dx < 0 ? 'loss' : dx > 0 ? 'gain' : 'same';
 const delta = value => value > 0 ? `+${value}` : String(value);
 
 export function renderMap(wrap, state, select) {
-  const { city, layer, baseline, result, plan, selected } = state;
+  const { city, layer, baseline, result, plan, selected, pickups } = state;
+  const pressed = pickups == null ? new Set(selected == null ? [] : [selected]) : new Set(pickups);
   const shownPlan = layer === 'baseline' ? city.baseline : plan;
   const shade = new Set(shownPlan.shade.map(key));
   const x = i => 69 + i * 662 / (city.w - 1);
@@ -36,9 +37,10 @@ export function renderMap(wrap, state, select) {
     const a = result.rows[i].within;
     const b = baseline.rows[i].within;
     const amount = layer === 'baseline' ? b : a;
-    const chosen = n.id === selected;
+    const chosen = pressed.has(n.id);
     const text = layer === 'change' ? delta(a - b) : `${amount}/4`;
-    const label = layer === 'change' ? `${n.name}, ${b} to ${a} services` : `${n.name}, ${amount} of 4 services`;
+    const label = (layer === 'change' ? `${n.name}, ${b} to ${a} services` : `${n.name}, ${amount} of 4 services`)
+      + (pickups ? ', pickup stop' : '');
     names.push(`<text class="zone-name" x="${x(n.x)}" y="${y(n.y) + 38}" text-anchor="middle">${n.name}</text>`);
     return `<g class="neighborhood ${layer === 'change' ? diffClass(a - b) : `c${amount}`}"
       data-neighborhood="${n.id}" role="button" tabindex="0" aria-label="${label}" aria-pressed="${chosen}"
@@ -54,7 +56,7 @@ export function renderMap(wrap, state, select) {
   wrap.innerHTML = `
     <svg viewBox="0 0 800 329" aria-labelledby="${uid}-title ${uid}-description" xmlns="http://www.w3.org/2000/svg">
       <title id="${uid}-title">${city.label} schematic</title>
-      <desc id="${uid}-description">Synthetic street grid and transit lines. Neighborhood buttons open travel and equity details.</desc>
+      <desc id="${uid}-description">Synthetic street grid and transit lines. Neighborhood buttons ${pickups ? 'toggle co-op pickups' : 'open travel and equity details'}.</desc>
       <g class="grid">${gridX}${gridY}${rects.join('')}</g>
       <text x="28" y="22" class="map-note">${city.blockMeters} m per grid block</text>
       <text x="712" y="22" text-anchor="end" class="map-note">schematic · not to scale</text>

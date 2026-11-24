@@ -338,7 +338,7 @@ function renderCoop() {
   }));
   $('coop-route').textContent = `${loopText(ev)}, every ${short(ev.headway)} min`;
   renderMap($('coop-map'), { city: ev.city, layer: 'change', baseline: ev.before, result: ev.after,
-    plan: ev.plan, selected: null }, togglePickup);
+    plan: ev.plan, pickups: coop.input.pickups }, togglePickup);
   const head = '<thead><tr><th scope="col">Neighborhood</th><th scope="col">Walk to pickup</th><th scope="col">Services within 30 min</th>'
     + `<th scope="col">${SERVICE_NAMES[ev.coop.anchor]} trip</th><th scope="col">Newly reached</th></tr></thead>`;
   const body = ev.rows.map(r => `<tr class="${picked.has(r.id) ? 'current' : ''}"><th scope="row">${r.name}</th>`
