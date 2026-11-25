@@ -225,7 +225,7 @@ footer { display: flex; justify-content: space-between; gap: .55rem; flex-wrap: 
 .compare thead th, .leverage thead th, .hood-delta thead th { border-bottom: 2px solid var(--green); }
 .compare tbody tr.current { background: #f0f3e6; }
 .compare tbody tr.current .row-pick { font-weight: 850; color: var(--green); }
-.row-pick { min-height: 0; padding: 0; border: 0; background: none; font-weight: 650; text-decoration: underline; text-underline-offset: .2em; }
+.row-pick { display: inline-flex; align-items: center; min-height: 24px; padding: .125rem 0; border: 0; background: none; font-weight: 650; text-decoration: underline; text-underline-offset: .2em; }
 .row-pick:hover { background: none; color: var(--ok); }
 .policy-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .policy-map { margin: 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--white); overflow: hidden; }
