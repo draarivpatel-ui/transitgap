@@ -286,3 +286,10 @@ test('timetable co-op exports describe scheduled waits at the actual departure t
   assert.match(expectedBrief, /expected wait/i);
   assert.doesNotMatch(expectedBrief, /scheduled timetable/i);
 });
+
+test('cleanHost truncates by Unicode code points without splitting a surrogate pair', () => {
+  const rocket = String.fromCodePoint(0x1f680);
+  const cleaned = cleanHost(`${'x'.repeat(MAX_HOST - 1)}${rocket}tail`);
+  assert.equal(Array.from(cleaned).length, MAX_HOST);
+  assert.equal(Array.from(cleaned).at(-1), rocket);
+});

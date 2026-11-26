@@ -25,8 +25,9 @@ const clampInt = (value, [lo, hi], fallback) => {
 };
 
 export function cleanHost(value) {
-  return String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[<>`*_[\]#|\\]/g, '')
-    .replace(/\s+/g, ' ').trim().slice(0, MAX_HOST);
+  const cleaned = String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[<>`*_[\]#|\\]/g, '')
+    .replace(/\s+/g, ' ').trim();
+  return Array.from(cleaned).slice(0, MAX_HOST).join('');
 }
 
 export function normalizeCoop(city, input = {}) {
