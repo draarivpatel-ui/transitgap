@@ -6,7 +6,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "start": "node test/serve.mjs",
-    "test": "node --test --test-reporter=dot test/model.test.mjs test/policy.test.mjs test/coop.test.mjs",
+    "test": "node --test --test-reporter=dot test/*.test.mjs",
     "test:browser": "node test/browser.mjs",
     "benchmark": "node test/benchmark.mjs"
   }
